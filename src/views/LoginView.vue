@@ -1,40 +1,121 @@
 <template>
   <main class="login-page">
-    <section class="login-panel">
-      <p class="section-kicker">Account</p>
-      <h1>登录演示</h1>
-      <p class="section-desc">当前阶段只做前端架构，点击按钮会写入本地演示身份。</p>
+    <section class="auth-shell">
+      <div class="auth-intro">
+        <p class="section-kicker">Account</p>
+        <h1>开始你的系统学习</h1>
+        <p class="section-desc">登录或注册后可进入用户中心、讲师中心。当前为纯前端静态演示，会写入本地身份状态。</p>
+      </div>
 
-      <el-form label-position="top" class="login-form">
-        <el-form-item label="登录身份">
-          <el-radio-group v-model="selectedRole">
-            <el-radio-button label="user">普通用户</el-radio-button>
-            <el-radio-button label="teacher">讲师</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
+      <div class="login-panel">
+        <el-tabs v-model="activeTab" stretch>
+          <el-tab-pane label="登录" name="login">
+            <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-position="top" class="login-form">
+              <el-form-item label="手机号 / 邮箱" prop="account">
+                <el-input v-model="loginForm.account" placeholder="请输入手机号或邮箱" />
+              </el-form-item>
+              <el-form-item label="密码" prop="password">
+                <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password />
+              </el-form-item>
+              <el-form-item label="登录身份">
+                <el-radio-group v-model="selectedRole">
+                  <el-radio-button label="user">普通用户</el-radio-button>
+                  <el-radio-button label="teacher">讲师</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+              <el-button type="primary" class="login-button" @click="handleLogin">登录</el-button>
+            </el-form>
+          </el-tab-pane>
 
-        <el-button type="primary" class="login-button" @click="handleLogin">进入系统</el-button>
-      </el-form>
+          <el-tab-pane label="注册" name="register">
+            <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" label-position="top" class="login-form">
+              <el-form-item label="昵称" prop="nickname">
+                <el-input v-model="registerForm.nickname" placeholder="请输入昵称" />
+              </el-form-item>
+              <el-form-item label="邮箱" prop="email">
+                <el-input v-model="registerForm.email" placeholder="请输入邮箱" />
+              </el-form-item>
+              <el-form-item label="密码" prop="password">
+                <el-input v-model="registerForm.password" type="password" placeholder="至少 6 位密码" show-password />
+              </el-form-item>
+              <el-form-item label="注册身份">
+                <el-select v-model="selectedRole">
+                  <el-option label="普通用户" value="user" />
+                  <el-option label="讲师" value="teacher" />
+                </el-select>
+              </el-form-item>
+              <el-button type="primary" class="login-button" @click="handleRegister">注册并进入</el-button>
+            </el-form>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
     </section>
   </main>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const activeTab = ref('login')
 const selectedRole = ref('user')
+const loginFormRef = ref()
+const registerFormRef = ref()
 
-function handleLogin() {
+const loginForm = reactive({
+  account: 'demo@woyaoxue.com',
+  password: '123456',
+})
+
+const registerForm = reactive({
+  nickname: '',
+  email: '',
+  password: '',
+})
+
+const loginRules = {
+  account: [{ required: true, message: '请输入手机号或邮箱', trigger: 'blur' }],
+  password: [{ required: true, min: 6, message: '请输入至少 6 位密码', trigger: 'blur' }],
+}
+
+const registerRules = {
+  nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
+  ],
+  password: [{ required: true, min: 6, message: '请输入至少 6 位密码', trigger: 'blur' }],
+}
+
+async function handleLogin() {
+  try {
+    await loginFormRef.value.validate()
+    signIn('登录成功')
+  } catch {
+    // Element Plus has already rendered field-level validation messages.
+  }
+}
+
+async function handleRegister() {
+  try {
+    await registerFormRef.value.validate()
+    signIn('注册成功')
+  } catch {
+    // Element Plus has already rendered field-level validation messages.
+  }
+}
+
+function signIn(message) {
   authStore.login({
     accessToken: 'demo-token',
     userRole: selectedRole.value,
   })
-
+  ElMessage.success(message)
   router.push(route.query.redirect || '/')
 }
 </script>

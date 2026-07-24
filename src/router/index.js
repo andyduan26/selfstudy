@@ -2,6 +2,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
 import LoginView from '@/views/LoginView.vue'
 import HomeView from '@/views/HomeView.vue'
+import CourseListView from '@/views/CourseListView.vue'
+import CourseDetailView from '@/views/CourseDetailView.vue'
+import VideoPlayerView from '@/views/VideoPlayerView.vue'
+import TeacherProfileView from '@/views/TeacherProfileView.vue'
 import UserCenterView from '@/views/UserCenterView.vue'
 import TeacherCenterView from '@/views/TeacherCenterView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
@@ -17,6 +21,30 @@ const routes = [
         name: 'home',
         component: HomeView,
         meta: { title: '首页' },
+      },
+      {
+        path: 'courses',
+        name: 'courses',
+        component: CourseListView,
+        meta: { title: '课程分类' },
+      },
+      {
+        path: 'courses/:id',
+        name: 'course-detail',
+        component: CourseDetailView,
+        meta: { title: '课程详情' },
+      },
+      {
+        path: 'courses/:id/play',
+        name: 'video-player',
+        component: VideoPlayerView,
+        meta: { title: '视频播放' },
+      },
+      {
+        path: 'teachers/:id',
+        name: 'teacher-profile',
+        component: TeacherProfileView,
+        meta: { title: '讲师主页' },
       },
       {
         path: 'user',

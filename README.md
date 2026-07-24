@@ -2,6 +2,8 @@
 
 基于 Vue3、Vite、Vue Router、Pinia、Axios、Element Plus 的前端基础架构。
 
+当前已包含知识分享平台静态页面：首页、课程分类、课程详情、视频播放、讲师公开主页、登录注册。
+
 ## 启动
 
 ```bash
@@ -21,6 +23,7 @@ npm run build
 src
 ├── api              # Axios 请求封装与接口模块
 ├── components       # 公共组件
+├── data             # 静态演示数据
 ├── layouts          # 页面布局
 ├── router           # 路由与权限守卫
 ├── stores           # Pinia 状态管理
