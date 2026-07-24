@@ -24,7 +24,7 @@ class CustomUserAdmin(UserAdmin):
     search_fields = ('username', 'phone', 'email')
     ordering = ('-date_joined',)
     fieldsets = UserAdmin.fieldsets + (
-        ('平台信息', {'fields': ('role', 'phone', 'avatar', 'bio', 'is_verified_teacher', 'sort_weight')}),
+        ('平台信息', {'fields': ('role', 'phone', 'avatar', 'avatar_url', 'bio', 'is_verified_teacher', 'sort_weight')}),
     )
 
 
@@ -38,7 +38,7 @@ class TeacherProfileAdmin(admin.ModelAdmin):
 
 @admin.register(TeacherApplication)
 class TeacherApplicationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'real_name', 'user', 'direction', 'status', 'reviewed_by', 'created_at')
+    list_display = ('id', 'real_name', 'user', 'direction', 'status', 'sample_video', 'reviewed_by', 'created_at')
     list_filter = ('status', 'direction')
     search_fields = ('real_name', 'phone', 'direction')
     ordering = ('-created_at',)
@@ -59,7 +59,7 @@ class ChapterInline(admin.TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'teacher', 'category', 'status', 'price', 'view_count', 'sales_count', 'sort_weight')
+    list_display = ('id', 'title', 'teacher', 'category', 'status', 'price', 'cover', 'view_count', 'sales_count', 'sort_weight')
     list_filter = ('status', 'category', 'level', 'is_free')
     search_fields = ('title', 'teacher__real_name')
     ordering = ('-sort_weight', '-created_at')
@@ -81,16 +81,16 @@ class ChapterAdmin(admin.ModelAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'chapter', 'duration_seconds', 'view_count', 'sort_weight', 'is_free_preview')
-    list_filter = ('is_free_preview',)
+    list_display = ('id', 'title', 'chapter', 'source_type', 'video_file', 'video_url', 'vod_file_id', 'transcode_status', 'duration_seconds', 'view_count', 'is_free_preview')
+    list_filter = ('source_type', 'transcode_status', 'is_free_preview')
     search_fields = ('title', 'chapter__title')
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'order_no', 'user', 'course', 'status', 'amount', 'teacher_share_amount', 'platform_share_amount', 'created_at')
-    list_filter = ('status',)
-    search_fields = ('order_no', 'user__username', 'course__title')
+    list_display = ('id', 'order_no', 'user', 'course', 'status', 'pay_method', 'amount', 'refund_amount', 'teacher_share_amount', 'platform_share_amount', 'created_at')
+    list_filter = ('status', 'pay_method')
+    search_fields = ('order_no', 'trade_no', 'user__username', 'course__title')
     ordering = ('-created_at',)
 
 
@@ -103,14 +103,14 @@ class RevenueRecordAdmin(admin.ModelAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
-    list_display = ('id', 'withdraw_no', 'teacher', 'amount', 'account_type', 'status', 'reviewed_by', 'created_at')
+    list_display = ('id', 'withdraw_no', 'teacher', 'amount', 'account_type', 'bank_name', 'status', 'reviewed_by', 'created_at')
     list_filter = ('status', 'account_type')
     search_fields = ('withdraw_no', 'teacher__real_name', 'account_name', 'account_no')
 
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'course', 'rating', 'status', 'created_at')
+    list_display = ('id', 'user', 'course', 'rating', 'status', 'audit_remark', 'created_at')
     list_filter = ('status', 'rating')
     search_fields = ('user__username', 'course__title', 'content')
 

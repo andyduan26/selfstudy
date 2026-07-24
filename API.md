@@ -46,3 +46,13 @@ POST /api/auth/token/refresh/
 /api/comments/
 /api/favorites/
 ```
+
+## 视频上传字段
+
+`Video` 模型同时支持三种视频来源：
+
+- `source_type=upload`：使用 `video_file` 上传本地视频文件。
+- `source_type=external`：使用 `video_url` 保存外部视频地址。
+- `source_type=vod`：使用 `vod_file_id` 保存云点播文件 ID。
+
+辅助字段包含 `poster` 视频封面、`duration_seconds` 时长、`file_size` 文件大小、`transcode_status` 转码状态、`view_count` 点播量、`is_free_preview` 试看标记和 `sort_weight` 排序权重。

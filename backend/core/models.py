@@ -20,7 +20,8 @@ class User(AbstractUser):
     id = models.AutoField(primary_key=True)
     role = models.CharField('身份', max_length=20, choices=Role.choices, default=Role.USER)
     phone = models.CharField('手机号', max_length=20, blank=True, db_index=True)
-    avatar = models.URLField('头像', blank=True)
+    avatar = models.ImageField('头像上传', upload_to='avatars/%Y/%m/', blank=True)
+    avatar_url = models.URLField('外部头像地址', blank=True)
     bio = models.CharField('简介', max_length=255, blank=True)
     is_verified_teacher = models.BooleanField('是否认证讲师', default=False)
     sort_weight = models.IntegerField('排序权重', default=0)
@@ -68,6 +69,8 @@ class TeacherApplication(TimeStampedModel):
     direction = models.CharField('授课方向', max_length=100)
     experience = models.TextField('教学经历')
     portfolio_url = models.URLField('代表作品链接', blank=True)
+    sample_video = models.FileField('试讲视频上传', upload_to='teacher_applications/videos/%Y/%m/', blank=True)
+    certificate_file = models.FileField('资质证明上传', upload_to='teacher_applications/certificates/%Y/%m/', blank=True)
     status = models.CharField('审核状态', max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     audit_remark = models.TextField('审核备注', blank=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_teacher_applications', verbose_name='审核人')
@@ -116,7 +119,8 @@ class Course(TimeStampedModel):
     category = models.ForeignKey(CourseCategory, on_delete=models.PROTECT, related_name='courses', verbose_name='分类')
     title = models.CharField('课程标题', max_length=150)
     subtitle = models.CharField('副标题', max_length=255, blank=True)
-    cover = models.URLField('封面图', blank=True)
+    cover = models.ImageField('封面图上传', upload_to='courses/covers/%Y/%m/', blank=True)
+    cover_url = models.URLField('外部封面地址', blank=True)
     description = models.TextField('课程介绍', blank=True)
     level = models.CharField('难度', max_length=20, choices=Level.choices, default=Level.BEGINNER)
     status = models.CharField('审核/发布状态', max_length=20, choices=Status.choices, default=Status.DRAFT, db_index=True)
@@ -166,10 +170,21 @@ class Chapter(TimeStampedModel):
 
 
 class Video(TimeStampedModel):
+    class SourceType(models.TextChoices):
+        UPLOAD = 'upload', '本地上传'
+        EXTERNAL = 'external', '外部地址'
+        VOD = 'vod', '云点播'
+
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='videos', verbose_name='章节')
     title = models.CharField('视频标题', max_length=150)
-    video_url = models.URLField('视频地址')
+    source_type = models.CharField('视频来源', max_length=20, choices=SourceType.choices, default=SourceType.UPLOAD)
+    video_file = models.FileField('视频文件上传', upload_to='courses/videos/%Y/%m/', blank=True)
+    video_url = models.URLField('外部视频地址', blank=True)
+    vod_file_id = models.CharField('云点播文件ID', max_length=120, blank=True)
+    transcode_status = models.CharField('转码状态', max_length=30, default='pending')
+    file_size = models.PositiveBigIntegerField('文件大小字节', default=0)
     duration_seconds = models.PositiveIntegerField('视频时长秒', default=0)
+    poster = models.ImageField('视频封面上传', upload_to='courses/video_posters/%Y/%m/', blank=True)
     sort_weight = models.IntegerField('排序权重', default=0)
     is_free_preview = models.BooleanField('是否试看视频', default=False)
     view_count = models.PositiveIntegerField('点播量', default=0)
@@ -192,14 +207,24 @@ class Order(TimeStampedModel):
         REFUNDED = 'refunded', '已退款'
         COMPLETED = 'completed', '已完成'
 
+    class PayMethod(models.TextChoices):
+        WECHAT = 'wechat', '微信'
+        ALIPAY = 'alipay', '支付宝'
+        BANK = 'bank', '银行卡'
+        FREE = 'free', '免费'
+
     order_no = models.CharField('订单号', max_length=64, unique=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='orders', verbose_name='用户')
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name='orders', verbose_name='课程')
     status = models.CharField('订单状态', max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    pay_method = models.CharField('支付方式', max_length=20, choices=PayMethod.choices, default=PayMethod.ALIPAY)
+    trade_no = models.CharField('第三方交易号', max_length=120, blank=True)
     amount = models.DecimalField('实付金额', max_digits=10, decimal_places=2)
+    refund_amount = models.DecimalField('退款金额', max_digits=10, decimal_places=2, default=0)
     platform_share_amount = models.DecimalField('平台分成金额', max_digits=10, decimal_places=2, default=0)
     teacher_share_amount = models.DecimalField('讲师分成金额', max_digits=10, decimal_places=2, default=0)
     paid_at = models.DateTimeField('支付时间', null=True, blank=True)
+    refunded_at = models.DateTimeField('退款时间', null=True, blank=True)
     remark = models.CharField('备注', max_length=255, blank=True)
 
     class Meta:
@@ -250,6 +275,7 @@ class Withdrawal(TimeStampedModel):
     account_type = models.CharField('账户类型', max_length=30)
     account_name = models.CharField('账户名', max_length=100)
     account_no = models.CharField('账户号', max_length=120)
+    bank_name = models.CharField('开户行', max_length=120, blank=True)
     status = models.CharField('审核状态', max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     audit_remark = models.TextField('审核备注', blank=True)
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_withdrawals', verbose_name='审核人')
@@ -267,14 +293,17 @@ class Withdrawal(TimeStampedModel):
 
 class Comment(TimeStampedModel):
     class Status(models.TextChoices):
+        PENDING = 'pending', '待审核'
         VISIBLE = 'visible', '显示'
         HIDDEN = 'hidden', '隐藏'
+        REJECTED = 'rejected', '已驳回'
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='comments', verbose_name='用户')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='comments', verbose_name='课程')
     content = models.TextField('评论内容')
     rating = models.PositiveSmallIntegerField('评分', default=5)
-    status = models.CharField('状态', max_length=20, choices=Status.choices, default=Status.VISIBLE)
+    status = models.CharField('审核状态', max_length=20, choices=Status.choices, default=Status.PENDING)
+    audit_remark = models.CharField('审核备注', max_length=255, blank=True)
 
     class Meta:
         verbose_name = '评论'

@@ -6,6 +6,7 @@
 - npm
 - Python 3.9 或以上
 - MySQL 8 或以上
+- Pillow 图像处理依赖会随 `requirements.txt` 安装，用于头像、封面等上传字段。
 
 ## 本地运行
 
