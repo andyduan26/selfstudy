@@ -19,12 +19,12 @@ from .models import (
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ('id', 'username', 'phone', 'role', 'is_verified_teacher', 'is_active', 'date_joined')
+    list_display = ('id', 'username', 'nickname', 'phone', 'role', 'is_verified_teacher', 'is_active', 'date_joined')
     list_filter = ('role', 'is_verified_teacher', 'is_active', 'is_staff')
-    search_fields = ('username', 'phone', 'email')
+    search_fields = ('username', 'nickname', 'phone', 'email')
     ordering = ('-date_joined',)
     fieldsets = UserAdmin.fieldsets + (
-        ('平台信息', {'fields': ('role', 'phone', 'avatar', 'avatar_url', 'bio', 'is_verified_teacher', 'sort_weight')}),
+        ('平台信息', {'fields': ('role', 'nickname', 'phone', 'avatar', 'avatar_url', 'bio', 'is_verified_teacher', 'sort_weight')}),
     )
 
 

@@ -19,7 +19,7 @@ from .models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'phone', 'role', 'avatar', 'bio', 'is_verified_teacher')
+        fields = ('id', 'username', 'nickname', 'email', 'phone', 'role', 'avatar', 'avatar_url', 'bio', 'is_verified_teacher')
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):

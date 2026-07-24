@@ -17,10 +17,16 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import include, path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+admin.site.site_header = '我要自学网后台管理'
+admin.site.site_title = '我要自学网后台'
+admin.site.index_title = '后台首页'
+
 urlpatterns = [
+    path('', lambda request: redirect(settings.FRONTEND_URL), name='frontend_home'),
     path('admin/', admin.site.urls),
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

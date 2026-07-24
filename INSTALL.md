@@ -7,6 +7,7 @@
 - Python 3.9 或以上
 - MySQL 8 或以上
 - Pillow 图像处理依赖会随 `requirements.txt` 安装，用于头像、封面等上传字段。
+- SimpleUI 会随 `requirements.txt` 安装，用于 Django 中文后台界面。
 
 ## 本地运行
 

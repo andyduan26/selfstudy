@@ -19,6 +19,7 @@ class User(AbstractUser):
 
     id = models.AutoField(primary_key=True)
     role = models.CharField('身份', max_length=20, choices=Role.choices, default=Role.USER)
+    nickname = models.CharField('昵称', max_length=50, blank=True)
     phone = models.CharField('手机号', max_length=20, blank=True, db_index=True)
     avatar = models.ImageField('头像上传', upload_to='avatars/%Y/%m/', blank=True)
     avatar_url = models.URLField('外部头像地址', blank=True)

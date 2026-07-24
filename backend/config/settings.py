@@ -36,6 +36,7 @@ ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split('
 # Application definition
 
 INSTALLED_APPS = [
+    'simpleui',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -141,6 +142,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://127.0.0.1:5173/')
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
@@ -171,3 +173,7 @@ SIMPLE_JWT = {
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+SIMPLEUI_HOME_INFO = False
+SIMPLEUI_ANALYSIS = False
+SIMPLEUI_LOGO = ''
