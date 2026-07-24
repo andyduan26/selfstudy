@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import BasicLayout from '@/layouts/BasicLayout.vue'
-import AdminLayout from '@/layouts/AdminLayout.vue'
 import LoginView from '@/views/LoginView.vue'
 import HomeView from '@/views/HomeView.vue'
 import CourseListView from '@/views/CourseListView.vue'
@@ -10,13 +9,6 @@ import TeacherProfileView from '@/views/TeacherProfileView.vue'
 import UserCenterView from '@/views/UserCenterView.vue'
 import TeacherCenterView from '@/views/TeacherCenterView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
-import AdminHomeView from '@/views/admin/AdminHomeView.vue'
-import AdminUsersView from '@/views/admin/AdminUsersView.vue'
-import AdminTeacherAuditsView from '@/views/admin/AdminTeacherAuditsView.vue'
-import AdminWorkAuditsView from '@/views/admin/AdminWorkAuditsView.vue'
-import AdminOrdersView from '@/views/admin/AdminOrdersView.vue'
-import AdminWithdrawsView from '@/views/admin/AdminWithdrawsView.vue'
-import AdminSettingsView from '@/views/admin/AdminSettingsView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -73,19 +65,6 @@ const routes = [
     name: 'login',
     component: LoginView,
     meta: { title: '登录' },
-  },
-  {
-    path: '/admin',
-    component: AdminLayout,
-    children: [
-      { path: '', name: 'admin-home', component: AdminHomeView, meta: { title: '后台首页' } },
-      { path: 'users', name: 'admin-users', component: AdminUsersView, meta: { title: '用户管理' } },
-      { path: 'teachers', name: 'admin-teachers', component: AdminTeacherAuditsView, meta: { title: '讲师审核管理' } },
-      { path: 'works', name: 'admin-works', component: AdminWorkAuditsView, meta: { title: '作品审核管理' } },
-      { path: 'orders', name: 'admin-orders', component: AdminOrdersView, meta: { title: '订单管理' } },
-      { path: 'withdraws', name: 'admin-withdraws', component: AdminWithdrawsView, meta: { title: '提现审核' } },
-      { path: 'settings', name: 'admin-settings', component: AdminSettingsView, meta: { title: '系统配置' } },
-    ],
   },
   {
     path: '/:pathMatch(.*)*',

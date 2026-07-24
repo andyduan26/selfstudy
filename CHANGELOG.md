@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.5.3
+
+- 删除 Vue 前端静态 `/admin` 管理后台，避免和 Django SimpleUI 后台混淆。
+- 管理后台统一使用 Django 后端地址 `/admin/`。
+
 ## 0.5.2
 
 - 安装并启用 Django SimpleUI 后台框架。
