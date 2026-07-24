@@ -8,7 +8,7 @@
         <RouterLink to="/courses">全部课程</RouterLink>
         <RouterLink to="/courses?free=1">免费课程</RouterLink>
         <RouterLink to="/teachers/1">讲师主页</RouterLink>
-        <RouterLink to="/teacher">讲师中心</RouterLink>
+        <RouterLink to="/user">个人中心</RouterLink>
       </nav>
 
       <div class="app-header__actions">
