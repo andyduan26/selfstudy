@@ -1,5 +1,12 @@
 # 更新日志
 
+## 0.5.0
+
+- 新增 Django + DRF 后端项目。
+- 配置 MySQL、CORS、JWT 登录、DRF 分页和自定义用户模型。
+- 增加用户、讲师申请、讲师档案、课程分类、课程作品、章节视频、订单、收益、提现、评论、收藏等完整数据表。
+- 增加 Django Admin、Serializer、ViewSet、API 路由和初始化 migration。
+
 ## 0.4.0
 
 - 增加管理员后台全套静态页面。

@@ -19,3 +19,30 @@ GET /api/users/me/
 ## 静态页面说明
 
 课程、讲师、榜单、试看状态均来自 `src/data/platform.js`，当前不请求后端接口。
+
+## 后端 API
+
+JWT 登录：
+
+```http
+POST /api/auth/token/
+POST /api/auth/token/refresh/
+```
+
+核心资源：
+
+```text
+/api/users/
+/api/users/me/
+/api/teacher-profiles/
+/api/teacher-applications/
+/api/categories/
+/api/courses/
+/api/chapters/
+/api/videos/
+/api/orders/
+/api/revenues/
+/api/withdrawals/
+/api/comments/
+/api/favorites/
+```

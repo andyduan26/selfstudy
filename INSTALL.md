@@ -4,6 +4,8 @@
 
 - Node.js 18 或以上
 - npm
+- Python 3.9 或以上
+- MySQL 8 或以上
 
 ## 本地运行
 
@@ -18,3 +20,21 @@ npm run dev
 ```text
 http://127.0.0.1:5173
 ```
+
+## 后端运行
+
+```bash
+cd backend
+cp .env.example .env
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py createsuperuser
+.venv/bin/python manage.py runserver 127.0.0.1:8000
+```
+
+如果本机暂时没有 MySQL，可在 `backend/.env` 中设置：
+
+```text
+USE_SQLITE_FOR_TESTS=True
+```
+
+该开关只用于本地检查和测试，正式开发按 MySQL 配置运行。

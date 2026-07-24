@@ -1,14 +1,25 @@
 # 我要自学网前端
 
-基于 Vue3、Vite、Vue Router、Pinia、Axios、Element Plus 的前端基础架构。
+基于 Vue3、Vite、Vue Router、Pinia、Axios、Element Plus 的前端，以及 Django、DRF、JWT、MySQL 的后端基础架构。
 
 当前已包含知识分享平台静态页面：首页、课程分类、课程详情、视频播放、讲师公开主页、登录注册、个人中心、管理员后台。
+
+后端位于 `backend/`，已包含用户、讲师申请、课程作品、章节视频、订单、收益、提现、评论收藏等核心数据模型。
 
 ## 启动
 
 ```bash
 npm install
 npm run dev
+```
+
+后端启动：
+
+```bash
+cd backend
+cp .env.example .env
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py runserver
 ```
 
 ## 构建
@@ -29,4 +40,7 @@ src
 ├── stores           # Pinia 状态管理
 ├── styles           # 全局样式
 └── views            # 页面视图
+backend
+├── config           # Django 项目配置
+└── core             # 知识平台核心业务模型与接口
 ```
