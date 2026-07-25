@@ -33,6 +33,14 @@ cp .env.example .env
 .venv/bin/python manage.py runserver 127.0.0.1:8000
 ```
 
+上传文件保存目录：
+
+```text
+backend/media/
+```
+
+当前邮件通知使用控制台输出。生产环境可在 `backend/.env` 中配置 SMTP 邮件服务。
+
 如果本机暂时没有 MySQL，可在 `backend/.env` 中设置：
 
 ```text

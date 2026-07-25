@@ -1,5 +1,6 @@
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -8,6 +9,7 @@ from .models import (
     Chapter,
     Comment,
     Course,
+    CourseAttachment,
     CourseCategory,
     Favorite,
     Order,
@@ -29,6 +31,7 @@ from .serializers import (
     RegisterSerializer,
     RevenueRecordSerializer,
     TeacherApplicationSerializer,
+    TeacherWorkUploadSerializer,
     TeacherProfileSerializer,
     UserSerializer,
     VideoSerializer,
@@ -84,6 +87,7 @@ class TeacherApplicationViewSet(viewsets.ModelViewSet):
     queryset = TeacherApplication.objects.select_related('user', 'reviewed_by').all()
     serializer_class = TeacherApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -99,6 +103,45 @@ class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.select_related('teacher', 'category').prefetch_related('chapters__videos').all()
     serializer_class = CourseSerializer
     permission_classes = [IsAdminOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='upload-work')
+    def upload_work(self, request):
+        serializer = TeacherWorkUploadSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        category, _ = CourseCategory.objects.get_or_create(
+            name=data['category_name'],
+            defaults={'slug': data['category_name'].lower().replace(' ', '-')},
+        )
+        course = Course.objects.create(
+            teacher=request.user.teacher_profile,
+            category=category,
+            title=data['title'],
+            description=data.get('description', ''),
+            price=data.get('price') or 0,
+            cover=data.get('cover'),
+            status=Course.Status.PENDING,
+        )
+        chapter = Chapter.objects.create(course=course, title='默认章节', sort_weight=1, is_free_preview=True)
+        video_file = data.get('video_file')
+        if video_file:
+            Video.objects.create(
+                chapter=chapter,
+                title=f'{course.title} - 主视频',
+                video_file=video_file,
+                file_size=video_file.size,
+                is_free_preview=True,
+            )
+        attachment_file = data.get('attachment_file')
+        if attachment_file:
+            CourseAttachment.objects.create(
+                course=course,
+                title=attachment_file.name,
+                file=attachment_file,
+                file_size=attachment_file.size,
+            )
+        return Response(CourseSerializer(course, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class ChapterViewSet(viewsets.ModelViewSet):

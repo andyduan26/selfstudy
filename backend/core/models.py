@@ -199,6 +199,30 @@ class Video(TimeStampedModel):
         return self.title
 
 
+class CourseAttachment(TimeStampedModel):
+    class FileType(models.TextChoices):
+        DOCUMENT = 'document', '文档'
+        IMAGE = 'image', '图片'
+        AUDIO = 'audio', '音频'
+        ARCHIVE = 'archive', '压缩包'
+        OTHER = 'other', '其他'
+
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='attachments', verbose_name='课程')
+    title = models.CharField('附件名称', max_length=150)
+    file = models.FileField('附件上传', upload_to='courses/attachments/%Y/%m/')
+    file_type = models.CharField('文件类型', max_length=20, choices=FileType.choices, default=FileType.OTHER)
+    file_size = models.PositiveBigIntegerField('文件大小字节', default=0)
+    sort_weight = models.IntegerField('排序权重', default=0)
+
+    class Meta:
+        verbose_name = '课程附件'
+        verbose_name_plural = '课程附件'
+        ordering = ['sort_weight', 'id']
+
+    def __str__(self):
+        return self.title
+
+
 class Order(TimeStampedModel):
     class Status(models.TextChoices):
         PENDING = 'pending', '待支付'

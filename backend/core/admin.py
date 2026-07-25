@@ -1,10 +1,14 @@
 from django.contrib import admin
+from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin
+from django.core.mail import send_mail
+from django.utils import timezone
 
 from .models import (
     Chapter,
     Comment,
     Course,
+    CourseAttachment,
     CourseCategory,
     Favorite,
     Order,
@@ -15,6 +19,11 @@ from .models import (
     Video,
     Withdrawal,
 )
+
+
+def notify_teacher_application(application, subject, message):
+    if application.user.email:
+        send_mail(subject, message, None, [application.user.email], fail_silently=True)
 
 
 @admin.register(User)
@@ -42,6 +51,57 @@ class TeacherApplicationAdmin(admin.ModelAdmin):
     list_filter = ('status', 'direction')
     search_fields = ('real_name', 'phone', 'direction')
     ordering = ('-created_at',)
+    actions = ('approve_applications', 'reject_applications')
+
+    @admin.action(description='审核通过并开通讲师')
+    def approve_applications(self, request, queryset):
+        count = 0
+        for application in queryset:
+            application.status = TeacherApplication.Status.APPROVED
+            application.reviewed_by = request.user
+            application.reviewed_at = timezone.now()
+            application.audit_remark = application.audit_remark or '审核通过，已开通讲师身份。'
+            application.save()
+
+            user = application.user
+            user.role = User.Role.TEACHER
+            user.is_verified_teacher = True
+            user.phone = user.phone or application.phone
+            user.save(update_fields=['role', 'is_verified_teacher', 'phone'])
+
+            TeacherProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'real_name': application.real_name,
+                    'direction': application.direction,
+                    'experience': application.experience,
+                    'intro': application.experience,
+                },
+            )
+            notify_teacher_application(
+                application,
+                '我要自学网讲师认证审核通过',
+                f'{application.real_name}，你的讲师认证申请已审核通过，现在可以登录平台上传课程作品。',
+            )
+            count += 1
+        self.message_user(request, f'已通过 {count} 个讲师申请，并发送邮件通知。', messages.SUCCESS)
+
+    @admin.action(description='驳回讲师申请并邮件通知')
+    def reject_applications(self, request, queryset):
+        count = 0
+        for application in queryset:
+            application.status = TeacherApplication.Status.REJECTED
+            application.reviewed_by = request.user
+            application.reviewed_at = timezone.now()
+            application.audit_remark = application.audit_remark or '资料暂未通过审核，请补充后重新提交。'
+            application.save()
+            notify_teacher_application(
+                application,
+                '我要自学网讲师认证审核结果',
+                f'{application.real_name}，你的讲师认证申请暂未通过。审核备注：{application.audit_remark}',
+            )
+            count += 1
+        self.message_user(request, f'已驳回 {count} 个讲师申请，并发送邮件通知。', messages.WARNING)
 
 
 @admin.register(CourseCategory)
@@ -71,12 +131,24 @@ class VideoInline(admin.TabularInline):
     extra = 0
 
 
+class CourseAttachmentInline(admin.TabularInline):
+    model = CourseAttachment
+    extra = 0
+
+
 @admin.register(Chapter)
 class ChapterAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'course', 'sort_weight', 'is_free_preview')
     list_filter = ('is_free_preview',)
     search_fields = ('title', 'course__title')
     inlines = [VideoInline]
+
+
+@admin.register(CourseAttachment)
+class CourseAttachmentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'course', 'file_type', 'file_size', 'sort_weight', 'created_at')
+    list_filter = ('file_type',)
+    search_fields = ('title', 'course__title')
 
 
 @admin.register(Video)

@@ -62,6 +62,17 @@ PATCH /api/users/me/
 /api/favorites/
 ```
 
+讲师申请与作品上传：
+
+```http
+POST /api/teacher-applications/
+POST /api/courses/upload-work/
+```
+
+`POST /api/teacher-applications/` 支持 `multipart/form-data`，字段包含 `real_name`、`phone`、`direction`、`experience`、`portfolio_url`、`sample_video`、`certificate_file`。
+
+`POST /api/courses/upload-work/` 仅认证讲师可用，支持课程封面 `cover`、课程视频 `video_file`、课程附件 `attachment_file`。后端会保存到 `backend/media/`，课程状态默认为待审核。
+
 ## 视频上传字段
 
 `Video` 模型同时支持三种视频来源：
@@ -71,3 +82,12 @@ PATCH /api/users/me/
 - `source_type=vod`：使用 `vod_file_id` 保存云点播文件 ID。
 
 辅助字段包含 `poster` 视频封面、`duration_seconds` 时长、`file_size` 文件大小、`transcode_status` 转码状态、`view_count` 点播量、`is_free_preview` 试看标记和 `sort_weight` 排序权重。
+
+大文件上传配置：
+
+```text
+DATA_UPLOAD_MAX_MEMORY_SIZE=1073741824
+FILE_UPLOAD_MAX_MEMORY_SIZE=104857600
+```
+
+当前适合本地和中小规模上传。生产环境建议接对象存储或云点播直传。

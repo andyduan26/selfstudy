@@ -39,17 +39,34 @@
     </div>
   </section>
 
-  <el-dialog v-model="workDialogVisible" title="新建作品" width="520px">
-    <el-form :model="workForm" label-position="top">
-      <el-form-item label="课程名称">
+  <el-dialog v-model="workDialogVisible" title="上传课程作品" width="620px">
+    <el-form ref="workFormRef" :model="workForm" :rules="workRules" label-position="top">
+      <el-form-item label="课程名称" prop="title">
         <el-input v-model="workForm.title" placeholder="请输入课程名称" />
       </el-form-item>
-      <el-form-item label="课程分类">
-        <el-select v-model="workForm.category" placeholder="选择分类">
-          <el-option label="前端开发" value="frontend" />
-          <el-option label="后端开发" value="backend" />
-          <el-option label="办公效率" value="office" />
-        </el-select>
+      <el-form-item label="课程分类" prop="categoryName">
+        <el-input v-model="workForm.categoryName" placeholder="例如：前端开发、后端开发、AI 工具" />
+      </el-form-item>
+      <el-form-item label="课程说明" prop="description">
+        <el-input v-model="workForm.description" type="textarea" :rows="4" placeholder="请填写课程介绍、适合人群和学习目标" />
+      </el-form-item>
+      <el-form-item label="定价">
+        <el-input-number v-model="workForm.price" :min="0" :step="10" />
+      </el-form-item>
+      <el-form-item label="课程封面">
+        <el-upload :auto-upload="false" :limit="1" :on-change="handleCover" :on-remove="() => (workForm.cover = null)">
+          <el-button>选择封面图片</el-button>
+        </el-upload>
+      </el-form-item>
+      <el-form-item label="课程视频（支持大文件，多格式）">
+        <el-upload :auto-upload="false" :limit="1" :on-change="handleWorkVideo" :on-remove="() => (workForm.videoFile = null)">
+          <el-button>选择视频文件</el-button>
+        </el-upload>
+      </el-form-item>
+      <el-form-item label="课程附件（文档/图片/音频/压缩包等）">
+        <el-upload :auto-upload="false" :limit="1" :on-change="handleAttachment" :on-remove="() => (workForm.attachmentFile = null)">
+          <el-button>选择附件</el-button>
+        </el-upload>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -83,6 +100,7 @@ import { onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { DataAnalysis, Document, Money, Promotion, User, Wallet } from '@element-plus/icons-vue'
 import { getCurrentUserApi } from '@/api/auth'
+import { uploadTeacherWorkApi } from '@/api/teacher'
 import { useAuthStore } from '@/stores/auth'
 import ProfilePanel from './ProfilePanel.vue'
 import TeacherApplyPanel from './TeacherApplyPanel.vue'
@@ -98,6 +116,7 @@ const profileUser = ref(authStore.user)
 const workDialogVisible = ref(false)
 const withdrawDialogVisible = ref(false)
 const withdrawFormRef = ref()
+const workFormRef = ref()
 
 const roleOptions = [
   { label: '普通用户', value: 'user' },
@@ -115,8 +134,19 @@ const allMenus = [
 
 const workForm = reactive({
   title: '',
-  category: '',
+  categoryName: '',
+  description: '',
+  price: 0,
+  cover: null,
+  videoFile: null,
+  attachmentFile: null,
 })
+
+const workRules = {
+  title: [{ required: true, message: '请输入课程名称', trigger: 'blur' }],
+  categoryName: [{ required: true, message: '请输入课程分类', trigger: 'blur' }],
+  description: [{ required: true, min: 10, message: '请至少填写 10 个字说明', trigger: 'blur' }],
+}
 
 const withdrawForm = reactive({
   amount: '',
@@ -171,9 +201,35 @@ function handleRoleChange(role) {
   ElMessage.success(role === 'teacher' ? '已切换为认证讲师' : '已切换为普通用户')
 }
 
-function submitWork() {
-  workDialogVisible.value = false
-  ElMessage.success('作品草稿已保存')
+function handleCover(file) {
+  workForm.cover = file.raw
+}
+
+function handleWorkVideo(file) {
+  workForm.videoFile = file.raw
+}
+
+function handleAttachment(file) {
+  workForm.attachmentFile = file.raw
+}
+
+async function submitWork() {
+  try {
+    await workFormRef.value.validate()
+    const formData = new FormData()
+    formData.append('title', workForm.title)
+    formData.append('category_name', workForm.categoryName)
+    formData.append('description', workForm.description)
+    formData.append('price', workForm.price)
+    if (workForm.cover) formData.append('cover', workForm.cover)
+    if (workForm.videoFile) formData.append('video_file', workForm.videoFile)
+    if (workForm.attachmentFile) formData.append('attachment_file', workForm.attachmentFile)
+    await uploadTeacherWorkApi(formData)
+    workDialogVisible.value = false
+    ElMessage.success('作品已上传，等待后台审核')
+  } catch {
+    // Element Plus and Axios already show errors.
+  }
 }
 
 async function submitWithdraw() {

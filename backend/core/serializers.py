@@ -8,6 +8,7 @@ from .models import (
     Chapter,
     Comment,
     Course,
+    CourseAttachment,
     CourseCategory,
     Favorite,
     Order,
@@ -110,7 +111,7 @@ class TeacherApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeacherApplication
         fields = '__all__'
-        read_only_fields = ('status', 'audit_remark', 'reviewed_by', 'reviewed_at')
+        read_only_fields = ('user', 'status', 'audit_remark', 'reviewed_by', 'reviewed_at')
 
 
 class CourseCategorySerializer(serializers.ModelSerializer):
@@ -122,6 +123,12 @@ class CourseCategorySerializer(serializers.ModelSerializer):
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
+        fields = '__all__'
+
+
+class CourseAttachmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseAttachment
         fields = '__all__'
 
 
@@ -137,10 +144,27 @@ class CourseSerializer(serializers.ModelSerializer):
     teacher_detail = TeacherProfileSerializer(source='teacher', read_only=True)
     category_detail = CourseCategorySerializer(source='category', read_only=True)
     chapters = ChapterSerializer(many=True, read_only=True)
+    attachments = CourseAttachmentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Course
         fields = '__all__'
+
+
+class TeacherWorkUploadSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=150)
+    category_name = serializers.CharField(max_length=50)
+    description = serializers.CharField(required=False, allow_blank=True)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    cover = serializers.ImageField(required=False)
+    video_file = serializers.FileField(required=False)
+    attachment_file = serializers.FileField(required=False)
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        if not getattr(user, 'is_verified_teacher', False) or not hasattr(user, 'teacher_profile'):
+            raise serializers.ValidationError('只有认证讲师可以上传作品')
+        return attrs
 
 
 class OrderSerializer(serializers.ModelSerializer):
