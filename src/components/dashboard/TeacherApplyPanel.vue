@@ -108,7 +108,7 @@ async function submitForm() {
     if (form.sampleVideo) formData.append('sample_video', form.sampleVideo)
     if (form.certificateFile) formData.append('certificate_file', form.certificateFile)
     await submitTeacherApplicationApi(formData)
-    await ElMessageBox.alert('申请已提交到后端。管理员会在 Django 后台审核，审核结果会通过邮件通知。', '提交成功', {
+    await ElMessageBox.alert('讲师认证申请已提交成功，请耐心等待 2-3 个工作日。审核结果会通过邮箱通知，请注意查收。', '提交成功', {
       confirmButtonText: '知道了',
     })
   } catch (error) {
