@@ -23,7 +23,16 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const status = error.response?.status
     const data = error.response?.data
+    const isInvalidToken = status === 401 && String(data?.detail || '').includes('token')
+    if (isInvalidToken) {
+      const authStore = useAuthStore()
+      authStore.logout()
+      ElMessage.error('登录状态已过期，请重新登录')
+      return Promise.reject(error)
+    }
+
     const message = data?.message || data?.detail || Object.values(data || {})?.flat?.()?.[0] || error.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)

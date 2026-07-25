@@ -268,7 +268,7 @@ function handleRoleChange(role) {
     })
     return
   }
-  authStore.login({ accessToken: authStore.token || 'demo-token', userRole: role })
+  authStore.switchRole(role)
   ElMessage.success(role === 'teacher' ? '已切换为认证讲师' : '已切换为普通用户')
   activeMenu.value = role === 'teacher' ? 'dashboard' : 'profile'
 }

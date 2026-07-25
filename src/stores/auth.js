@@ -30,6 +30,11 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem(ROLE_KEY, role.value)
   }
 
+  function switchRole(userRole) {
+    role.value = userRole
+    localStorage.setItem(ROLE_KEY, userRole)
+  }
+
   function logout() {
     token.value = ''
     role.value = 'user'
@@ -46,6 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     login,
     updateUser,
+    switchRole,
     logout,
   }
 })
