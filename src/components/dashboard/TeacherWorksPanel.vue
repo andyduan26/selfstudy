@@ -20,10 +20,11 @@
       <el-table-column prop="students" label="学员" width="110" />
       <el-table-column prop="viewCount" label="点播" width="110" />
       <el-table-column prop="updatedAt" label="更新时间" width="170" />
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" width="190">
         <template #default="{ row }">
           <el-button text @click="openEdit(row)">编辑</el-button>
           <el-button text @click="previewWork(row)">预览</el-button>
+          <el-button text type="danger" @click="deleteWork(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -39,12 +40,15 @@
         <el-input v-model="editForm.categoryName" disabled />
       </el-form-item>
       <el-form-item label="定价">
-        <el-input v-model="editForm.priceText" disabled />
+        <el-input-number v-model="editForm.price" :min="0" :step="10" />
+      </el-form-item>
+      <el-form-item label="课程说明">
+        <el-input v-model="editForm.description" type="textarea" :rows="4" placeholder="请填写课程介绍、适合人群和学习目标" />
       </el-form-item>
       <el-form-item label="当前状态">
         <el-tag :type="courseStatusType(editForm.status)" effect="plain">{{ courseStatusLabel(editForm.status) }}</el-tag>
       </el-form-item>
-      <el-alert title="当前编辑弹窗用于前端管理体验展示，课程修改保存接口将在下一阶段接入。" type="info" show-icon :closable="false" />
+      <el-alert title="保存后课程会重新进入待审核状态，管理员审核通过后再公开展示。" type="info" show-icon :closable="false" />
     </el-form>
     <template #footer>
       <el-button @click="editVisible = false">取消</el-button>
@@ -55,9 +59,9 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { getTeacherWorksApi } from '@/api/teacher'
+import { deleteTeacherWorkApi, getTeacherWorksApi, updateTeacherWorkApi } from '@/api/teacher'
 import { courseStatusLabel, courseStatusType, formatCourseWork } from '@/utils/courseFormat'
 
 defineEmits(['create'])
@@ -72,7 +76,8 @@ const editForm = reactive({
   title: '',
   status: '',
   categoryName: '',
-  priceText: '',
+  description: '',
+  price: 0,
 })
 
 const works = computed(() => rawWorks.value.map(formatCourseWork))
@@ -97,8 +102,25 @@ function previewWork(row) {
   router.push(`/courses/${row.id}`)
 }
 
-function saveEdit() {
+async function saveEdit() {
+  await updateTeacherWorkApi(editForm.id, {
+    title: editForm.title,
+    description: editForm.description,
+    price: editForm.price,
+  })
   editVisible.value = false
-  ElMessage.success('编辑内容已暂存，后续接入课程修改接口后可保存到后端')
+  await loadWorks()
+  ElMessage.success('课程作品已保存，等待后台重新审核')
+}
+
+async function deleteWork(row) {
+  await ElMessageBox.confirm(`确认删除《${row.title}》吗？删除后后端数据将同步移除。`, '删除课程作品', {
+    confirmButtonText: '确认删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  await deleteTeacherWorkApi(row.id)
+  await loadWorks()
+  ElMessage.success('课程作品已删除')
 }
 </script>

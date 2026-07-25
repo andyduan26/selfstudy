@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Course, CourseAttachment, CourseCategory, TeacherApplication, TeacherProfile, User, Video
+from core.models import Course, CourseAttachment, CourseCategory, Order, RevenueRecord, TeacherApplication, TeacherProfile, User, Video
 
 
 class AuthApiTests(APITestCase):
@@ -211,3 +211,77 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         titles = [item['title'] for item in response.data['results']]
         self.assertEqual(titles, ['已通过课程'])
+
+    def test_verified_teacher_can_update_and_delete_own_work(self):
+        user = User.objects.create_user(
+            username='teacher-crud@example.com',
+            email='teacher-crud@example.com',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        teacher = TeacherProfile.objects.create(user=user, real_name='维护老师', direction='前端开发')
+        category = CourseCategory.objects.create(name='前端开发', slug='frontend')
+        course = Course.objects.create(
+            teacher=teacher,
+            category=category,
+            title='待维护课程',
+            status=Course.Status.PUBLISHED,
+            price='88.00',
+        )
+        self.client.force_authenticate(user=user)
+
+        update_response = self.client.patch(f'/api/courses/{course.id}/my-update/', {
+            'title': '已更新课程',
+            'price': '99.00',
+        }, format='json')
+
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        course.refresh_from_db()
+        self.assertEqual(course.title, '已更新课程')
+        self.assertEqual(course.status, Course.Status.PENDING)
+
+        delete_response = self.client.delete(f'/api/courses/{course.id}/my-delete/')
+        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Course.objects.filter(id=course.id).exists())
+
+    def test_verified_teacher_can_read_own_revenue_summary(self):
+        teacher_user = User.objects.create_user(
+            username='teacher-income@example.com',
+            email='teacher-income@example.com',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        buyer = User.objects.create_user(username='buyer@example.com', email='buyer@example.com', password='StrongPass12345')
+        teacher = TeacherProfile.objects.create(user=teacher_user, real_name='收益老师', direction='前端开发')
+        category = CourseCategory.objects.create(name='前端开发', slug='frontend-income')
+        course = Course.objects.create(teacher=teacher, category=category, title='收益课程', status=Course.Status.PUBLISHED)
+        order = Order.objects.create(
+            order_no='ORDER20260725001',
+            user=buyer,
+            course=course,
+            status=Order.Status.PAID,
+            amount='100.00',
+            teacher_share_amount='70.00',
+            platform_share_amount='30.00',
+        )
+        RevenueRecord.objects.create(
+            teacher=teacher,
+            course=course,
+            order=order,
+            gross_amount='100.00',
+            teacher_amount='70.00',
+            platform_amount='30.00',
+            teacher_share_rate='70.00',
+            platform_share_rate='30.00',
+            status=RevenueRecord.Status.WITHDRAWABLE,
+        )
+        self.client.force_authenticate(user=teacher_user)
+
+        response = self.client.get('/api/revenues/my-summary/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['total'], 70)
+        self.assertEqual(response.data['withdrawable'], 70)
+        self.assertEqual(response.data['rows'][0]['course'], course.id)

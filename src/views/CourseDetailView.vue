@@ -34,10 +34,13 @@
           <p>{{ course.summary }} 课程采用循序渐进的方式讲解，适合希望系统补齐基础并完成项目练习的学习者。</p>
         </el-tab-pane>
         <el-tab-pane label="课程目录">
-          <div v-for="lesson in lessons" :key="lesson" class="lesson-row">
-            <span>第 {{ lesson }} 讲</span>
-            <strong>{{ lesson === 1 ? '课程试看：学习路线介绍' : '核心知识点讲解与练习' }}</strong>
-            <el-tag v-if="lesson === 1" size="small" type="success" effect="plain">可试看</el-tag>
+          <div v-for="lesson in lessons" :key="lesson.id" class="lesson-row">
+            <span>第 {{ lesson.index }} 讲</span>
+            <strong>{{ lesson.title }}</strong>
+            <el-tag v-if="lesson.isFreePreview" size="small" type="success" effect="plain">可试看</el-tag>
+            <el-button size="small" type="primary" plain @click="playLesson(lesson)">
+              {{ lesson.isFreePreview ? '播放' : '试看' }}
+            </el-button>
           </div>
         </el-tab-pane>
         <el-tab-pane label="适合人群">
@@ -81,8 +84,16 @@ const rawCourse = ref(null)
 const course = computed(() => (rawCourse.value ? mapCourse(rawCourse.value) : null))
 const teacher = computed(() => rawCourse.value?.teacher_detail || null)
 const lessons = computed(() => {
-  const count = rawCourse.value?.chapters?.length || 1
-  return Array.from({ length: Math.max(count, 1) }, (_item, index) => index + 1)
+  const chapters = rawCourse.value?.chapters || []
+  if (!chapters.length) {
+    return [{ id: 'default', index: 1, title: '课程试看：学习路线介绍', isFreePreview: true }]
+  }
+  return chapters.map((chapter, index) => ({
+    id: chapter.id,
+    index: index + 1,
+    title: chapter.title || `第 ${index + 1} 讲`,
+    isFreePreview: chapter.is_free_preview || index === 0,
+  }))
 })
 
 onMounted(loadCourse)
@@ -106,6 +117,16 @@ function handlePreview() {
     confirmButtonText: '进入试看',
     callback: () => router.push(`/courses/${course.value.id}/play`),
   })
+}
+
+function playLesson(lesson) {
+  if (!lesson.isFreePreview) {
+    ElMessageBox.alert('该章节暂未开放试看，购买后可观看完整内容。', '播放提示', {
+      confirmButtonText: '知道了',
+    })
+    return
+  }
+  router.push(`/courses/${course.value.id}/play`)
 }
 
 async function loadCourse() {

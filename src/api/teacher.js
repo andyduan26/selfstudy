@@ -15,3 +15,11 @@ export function uploadTeacherWorkApi(formData) {
 export function getTeacherWorksApi() {
   return request.get('/api/courses/my-works/')
 }
+
+export function updateTeacherWorkApi(id, data) {
+  return request.patch(`/api/courses/${id}/my-update/`, data)
+}
+
+export function deleteTeacherWorkApi(id) {
+  return request.delete(`/api/courses/${id}/my-delete/`)
+}

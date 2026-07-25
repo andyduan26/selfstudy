@@ -192,6 +192,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class RevenueRecordSerializer(serializers.ModelSerializer):
+    course_detail = CourseSerializer(source='course', read_only=True)
+
     class Meta:
         model = RevenueRecord
         fields = '__all__'

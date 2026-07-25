@@ -1,6 +1,8 @@
+from django.db import models
+from django.db.models import Sum
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -87,7 +89,7 @@ class TeacherApplicationViewSet(viewsets.ModelViewSet):
     queryset = TeacherApplication.objects.select_related('user', 'reviewed_by').all()
     serializer_class = TeacherApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -103,7 +105,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.select_related('teacher', 'category').prefetch_related('chapters__videos').all()
     serializer_class = CourseSerializer
     permission_classes = [IsAdminOrReadOnly]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -118,6 +120,24 @@ class CourseViewSet(viewsets.ModelViewSet):
         ).order_by('-updated_at')
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAuthenticated], url_path='my-update')
+    def my_update(self, request, pk=None):
+        course = self.get_queryset().filter(pk=pk, teacher__user=request.user).first()
+        if not course:
+            return Response({'detail': '课程作品不存在或无权编辑'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(course, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(status=Course.Status.PENDING)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['delete'], permission_classes=[permissions.IsAuthenticated], url_path='my-delete')
+    def my_delete(self, request, pk=None):
+        course = Course.objects.filter(pk=pk, teacher__user=request.user).first()
+        if not course:
+            return Response({'detail': '课程作品不存在或无权删除'}, status=status.HTTP_404_NOT_FOUND)
+        course.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='upload-work')
     def upload_work(self, request):
@@ -201,6 +221,28 @@ class RevenueRecordViewSet(viewsets.ModelViewSet):
     queryset = RevenueRecord.objects.select_related('teacher', 'course', 'order').all()
     serializer_class = RevenueRecordSerializer
     permission_classes = [permissions.IsAdminUser]
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='my-summary')
+    def my_summary(self, request):
+        teacher = getattr(request.user, 'teacher_profile', None)
+        if not teacher:
+            return Response({'detail': '只有认证讲师可以查看收益'}, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = self.get_queryset().filter(teacher=teacher)
+        summary = queryset.aggregate(
+            total=Sum('teacher_amount'),
+            pending=Sum('teacher_amount', filter=models.Q(status=RevenueRecord.Status.PENDING)),
+            withdrawable=Sum('teacher_amount', filter=models.Q(status=RevenueRecord.Status.WITHDRAWABLE)),
+            settled=Sum('teacher_amount', filter=models.Q(status=RevenueRecord.Status.SETTLED)),
+        )
+        rows = RevenueRecordSerializer(queryset[:20], many=True, context={'request': request}).data
+        return Response({
+            'total': summary['total'] or 0,
+            'pending': summary['pending'] or 0,
+            'withdrawable': summary['withdrawable'] or 0,
+            'settled': summary['settled'] or 0,
+            'rows': rows,
+        })
 
 
 class WithdrawalViewSet(viewsets.ModelViewSet):

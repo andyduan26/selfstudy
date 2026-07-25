@@ -4,6 +4,8 @@ export function formatCourseWork(course) {
     title: course.title,
     status: course.status,
     categoryName: course.category_detail?.name || '未分类',
+    description: course.description || '',
+    price: Number(course.price || 0),
     priceText: Number(course.price) > 0 ? `¥${Number(course.price).toFixed(2)}` : '免费',
     students: course.sales_count || 0,
     viewCount: course.view_count || 0,
