@@ -48,7 +48,7 @@
     <div v-loading="loading" class="course-grid course-grid--list">
       <article v-for="course in pagedCourses" :key="course.id" class="course-card" @click="router.push(`/courses/${course.id}`)">
         <div class="course-cover course-cover--image">
-          <img v-if="course.coverUrl" :src="course.coverUrl" :alt="course.title" />
+          <img v-if="course.coverUrl && !failedCoverIds.has(course.id)" :src="course.coverUrl" :alt="course.title" @error="markCoverFailed(course.id)" />
           <span v-else>{{ course.cover }}</span>
           <div class="course-cover__overlay">
             <strong>{{ course.title }}</strong>
@@ -99,6 +99,7 @@ const previewVisible = ref(false)
 const loading = ref(false)
 const loadError = ref(false)
 const backendCourses = ref([])
+const failedCoverIds = ref(new Set())
 const filters = reactive({
   category: '',
   level: '',
@@ -155,6 +156,10 @@ const pagedCourses = computed(() => {
 
 function categoryName(id) {
   return categories.find((item) => item.id === id)?.name || courses.value.find((item) => item.category === id)?.categoryText || '综合课程'
+}
+
+function markCoverFailed(id) {
+  failedCoverIds.value = new Set([...failedCoverIds.value, id])
 }
 
 function goFreeCourses() {

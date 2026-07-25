@@ -1,6 +1,7 @@
 import json
 import re
 
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -122,9 +123,18 @@ class CourseCategorySerializer(serializers.ModelSerializer):
 
 
 class VideoSerializer(serializers.ModelSerializer):
+    hls_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Video
         fields = '__all__'
+
+    def get_hls_url(self, obj):
+        if not obj.hls_url:
+            return ''
+        if obj.hls_url.startswith('/media/courses/hls/') and settings.R2_PUBLIC_BASE_URL:
+            return f'{settings.R2_PUBLIC_BASE_URL.rstrip("/")}/{obj.hls_url.removeprefix("/media/")}'
+        return obj.hls_url
 
 
 class CourseAttachmentSerializer(serializers.ModelSerializer):

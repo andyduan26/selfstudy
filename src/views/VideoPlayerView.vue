@@ -2,11 +2,19 @@
   <section v-if="course" class="player-page">
     <div class="player-shell">
       <div class="video-box">
-        <video v-if="currentVideoUrl" ref="videoRef" class="course-video" :poster="course.coverUrl" controls preload="metadata" />
+        <video
+          v-if="currentVideoUrl && !videoError"
+          ref="videoRef"
+          class="course-video"
+          :poster="course.coverUrl"
+          controls
+          preload="metadata"
+          @error="handleVideoError"
+        />
         <template v-else>
           <div class="play-symbol">▶</div>
           <h1>{{ course.title }}</h1>
-          <p>暂无可播放视频文件</p>
+          <p>{{ videoError ? '视频源文件暂不可用，请重新上传或等待转码完成。' : '暂无可播放视频文件' }}</p>
         </template>
       </div>
       <aside class="lesson-sidebar">
@@ -50,6 +58,7 @@ const rawCourse = ref(null)
 const activeLessonId = ref(null)
 const videoRef = ref(null)
 const hlsPlayer = ref(null)
+const videoError = ref(false)
 const course = computed(() => rawCourse.value ? {
   id: rawCourse.value.id,
   title: rawCourse.value.title,
@@ -105,6 +114,7 @@ function handleLesson(lesson) {
 async function setupVideoSource() {
   await nextTick()
   destroyHls()
+  videoError.value = false
   const video = videoRef.value
   const url = currentVideoUrl.value
   if (!video || !url) return
@@ -117,6 +127,9 @@ async function setupVideoSource() {
     const { default: Hls } = await import('hls.js')
     if (Hls.isSupported()) {
       hlsPlayer.value = new Hls()
+      hlsPlayer.value.on(Hls.Events.ERROR, (_, data) => {
+        if (data?.fatal) handleVideoError()
+      })
       hlsPlayer.value.loadSource(url)
       hlsPlayer.value.attachMedia(video)
       return
@@ -126,6 +139,11 @@ async function setupVideoSource() {
   }
 
   video.src = url
+}
+
+function handleVideoError() {
+  videoError.value = true
+  destroyHls()
 }
 
 function destroyHls() {
