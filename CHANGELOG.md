@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.5.30
+
+- Railway 后端部署改为 Dockerfile 构建，使用 Python 3.11 slim 并安装 ffmpeg。
+- 修复 Railway Nixpacks 构建阶段缺少 pip 导致部署失败的问题。
+
 ## 0.5.29
 
 - 增加 Vercel 前端部署配置 `vercel.json`。
