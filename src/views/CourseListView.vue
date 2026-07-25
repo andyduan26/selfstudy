@@ -47,13 +47,18 @@
 
     <div v-loading="loading" class="course-grid course-grid--list">
       <article v-for="course in pagedCourses" :key="course.id" class="course-card" @click="router.push(`/courses/${course.id}`)">
-        <div class="course-cover">{{ course.cover }}</div>
+        <div class="course-cover course-cover--image">
+          <img v-if="course.coverUrl" :src="course.coverUrl" :alt="course.title" />
+          <span v-else>{{ course.cover }}</span>
+          <div class="course-cover__overlay">
+            <strong>{{ course.title }}</strong>
+          </div>
+        </div>
         <div class="course-card__body">
           <div class="tag-row">
             <el-tag size="small" effect="plain">{{ categoryName(course.category) }}</el-tag>
             <el-tag size="small" :type="course.isFree ? 'success' : 'warning'" effect="plain">{{ course.price }}</el-tag>
           </div>
-          <h3>{{ course.title }}</h3>
           <p>{{ course.summary }}</p>
           <div class="course-meta">
             <span>{{ course.teacher }}</span>
@@ -119,6 +124,7 @@ const courses = computed(() => backendCourses.value.map((course) => ({
   students: course.sales_count || 0,
   summary: course.description || course.subtitle || '课程已通过平台审核，更多介绍请进入详情页查看。',
   cover: (course.title || '课程').slice(0, 3).toUpperCase(),
+  coverUrl: course.cover || course.cover_url || '',
   isFree: Number(course.price) <= 0 || course.is_free,
 })))
 

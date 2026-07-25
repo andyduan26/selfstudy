@@ -426,10 +426,45 @@ h3 {
   height: 170px;
   display: grid;
   place-items: center;
+  position: relative;
+  overflow: hidden;
   background: #f5f5f7;
   color: #1d1d1f;
   font-size: 36px;
   font-weight: 800;
+}
+
+.course-cover--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.28s ease;
+}
+
+.course-cover--image:hover img {
+  transform: scale(1.04);
+}
+
+.course-cover__overlay {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.68);
+  color: #ffffff;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.course-cover:hover .course-cover__overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.course-cover__overlay strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1.35;
 }
 
 .course-cover.large {
