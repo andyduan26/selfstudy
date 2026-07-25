@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 
 const request = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
   timeout: 10000,
 })
 
@@ -23,7 +23,8 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    const message = error.response?.data?.message || error.message || '请求失败'
+    const data = error.response?.data
+    const message = data?.message || data?.detail || Object.values(data || {})?.flat?.()?.[0] || error.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)
   },

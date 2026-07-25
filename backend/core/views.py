@@ -1,6 +1,8 @@
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
     Chapter,
@@ -21,8 +23,10 @@ from .serializers import (
     CommentSerializer,
     CourseCategorySerializer,
     CourseSerializer,
+    CustomTokenObtainPairSerializer,
     FavoriteSerializer,
     OrderSerializer,
+    RegisterSerializer,
     RevenueRecordSerializer,
     TeacherApplicationSerializer,
     TeacherProfileSerializer,
@@ -30,6 +34,10 @@ from .serializers import (
     VideoSerializer,
     WithdrawalSerializer,
 )
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):
@@ -47,6 +55,18 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def me(self, request):
         return Response(self.get_serializer(request.user).data)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def register(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'user': UserSerializer(user, context={'request': request}).data,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }, status=201)
 
 
 class TeacherProfileViewSet(viewsets.ModelViewSet):

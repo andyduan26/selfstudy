@@ -4,7 +4,7 @@
       <div class="auth-intro">
         <p class="section-kicker">Account</p>
         <h1>开始你的系统学习</h1>
-        <p class="section-desc">登录或注册后可进入用户中心、讲师中心。当前为纯前端静态演示，会写入本地身份状态。</p>
+        <p class="section-desc">登录或注册后可进入用户中心、讲师中心。账号会通过 Django 后端保存，登录使用 JWT。</p>
       </div>
 
       <div class="login-panel">
@@ -36,7 +36,7 @@
                 <el-input v-model="registerForm.email" placeholder="请输入邮箱" />
               </el-form-item>
               <el-form-item label="密码" prop="password">
-                <el-input v-model="registerForm.password" type="password" placeholder="至少 6 位密码" show-password />
+                <el-input v-model="registerForm.password" type="password" placeholder="至少 8 位，建议包含字母和数字" show-password />
               </el-form-item>
               <el-form-item label="注册身份">
                 <el-select v-model="selectedRole">
@@ -57,6 +57,7 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { loginApi, registerApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -68,8 +69,8 @@ const loginFormRef = ref()
 const registerFormRef = ref()
 
 const loginForm = reactive({
-  account: 'demo@woyaoxue.com',
-  password: '123456',
+  account: 'andyduan26',
+  password: 'Ay281988',
 })
 
 const registerForm = reactive({
@@ -80,7 +81,7 @@ const registerForm = reactive({
 
 const loginRules = {
   account: [{ required: true, message: '请输入手机号或邮箱', trigger: 'blur' }],
-  password: [{ required: true, min: 6, message: '请输入至少 6 位密码', trigger: 'blur' }],
+  password: [{ required: true, min: 8, message: '请输入至少 8 位密码', trigger: 'blur' }],
 }
 
 const registerRules = {
@@ -95,7 +96,12 @@ const registerRules = {
 async function handleLogin() {
   try {
     await loginFormRef.value.validate()
-    signIn('登录成功')
+    const data = await loginApi(loginForm)
+    signIn({
+      message: '登录成功',
+      accessToken: data.access,
+      userRole: data.user?.role || selectedRole.value,
+    })
   } catch {
     // Element Plus has already rendered field-level validation messages.
   }
@@ -104,16 +110,24 @@ async function handleLogin() {
 async function handleRegister() {
   try {
     await registerFormRef.value.validate()
-    signIn('注册成功')
+    const data = await registerApi({
+      ...registerForm,
+      role: selectedRole.value,
+    })
+    signIn({
+      message: '注册成功',
+      accessToken: data.access,
+      userRole: data.user?.role || selectedRole.value,
+    })
   } catch {
     // Element Plus has already rendered field-level validation messages.
   }
 }
 
-function signIn(message) {
+function signIn({ message, accessToken, userRole }) {
   authStore.login({
-    accessToken: 'demo-token',
-    userRole: selectedRole.value,
+    accessToken,
+    userRole,
   })
   ElMessage.success(message)
   router.push(route.query.redirect || '/')

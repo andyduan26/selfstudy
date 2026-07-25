@@ -29,6 +29,12 @@ POST /api/auth/token/
 POST /api/auth/token/refresh/
 ```
 
+前台注册：
+
+```http
+POST /api/users/register/
+```
+
 核心资源：
 
 ```text
