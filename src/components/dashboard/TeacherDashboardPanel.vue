@@ -31,18 +31,19 @@
           <h2>我的作品</h2>
           <el-tag effect="plain">按更新时间排序</el-tag>
         </div>
-        <div class="work-strip">
-          <article v-for="work in teacherWorks" :key="work.id" class="work-card">
+        <div v-loading="loading" class="work-strip">
+          <article v-for="work in works" :key="work.id" class="work-card">
             <div>
-              <el-tag :type="statusType(work.status)" effect="plain">{{ work.status }}</el-tag>
+              <el-tag :type="courseStatusType(work.status)" effect="plain">{{ courseStatusLabel(work.status) }}</el-tag>
               <h3>{{ work.title }}</h3>
             </div>
             <div class="work-card__meta">
               <span>{{ work.students.toLocaleString() }} 学员</span>
-              <strong>{{ work.income }}</strong>
+              <strong>{{ work.priceText }}</strong>
               <small>{{ work.updatedAt }} 更新</small>
             </div>
           </article>
+          <el-empty v-if="!loading && works.length === 0" description="暂无课程作品" />
         </div>
       </section>
 
@@ -81,7 +82,14 @@
 </template>
 
 <script setup>
-import { teacherReviews, teacherStats, teacherTodos, teacherWorks } from '@/data/dashboard'
+import { computed, onMounted, ref } from 'vue'
+import { getTeacherWorksApi } from '@/api/teacher'
+import { teacherReviews, teacherStats, teacherTodos } from '@/data/dashboard'
+import { courseStatusLabel, courseStatusType, formatCourseWork } from '@/utils/courseFormat'
+
+const loading = ref(false)
+const rawWorks = ref([])
+const works = computed(() => rawWorks.value.map(formatCourseWork))
 
 const bars = [
   { label: '2月', value: 42 },
@@ -92,9 +100,14 @@ const bars = [
   { label: '7月', value: 86 },
 ]
 
-function statusType(status) {
-  if (status === '已发布') return 'success'
-  if (status === '审核中') return 'warning'
-  return 'info'
+onMounted(loadWorks)
+
+async function loadWorks() {
+  loading.value = true
+  try {
+    rawWorks.value = await getTeacherWorksApi()
+  } finally {
+    loading.value = false
+  }
 }
 </script>
