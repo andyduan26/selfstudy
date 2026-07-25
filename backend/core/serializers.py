@@ -89,6 +89,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 User.objects.filter(username=identifier).first()
                 or User.objects.filter(email=identifier).first()
                 or User.objects.filter(phone=identifier).first()
+                or User.objects.filter(nickname=identifier).first()
             )
             if user:
                 attrs[self.username_field] = user.username

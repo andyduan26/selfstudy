@@ -11,8 +11,8 @@
         <el-tabs v-model="activeTab" stretch>
           <el-tab-pane label="登录" name="login">
             <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-position="top" class="login-form">
-              <el-form-item label="手机号 / 邮箱" prop="account">
-                <el-input v-model="loginForm.account" placeholder="请输入手机号或邮箱" />
+              <el-form-item label="账号 / 邮箱 / 手机号 / 昵称" prop="account">
+                <el-input v-model="loginForm.account" placeholder="请输入账号、邮箱、手机号或昵称" />
               </el-form-item>
               <el-form-item label="密码" prop="password">
                 <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password />
@@ -84,7 +84,7 @@ const registerForm = reactive({
 })
 
 const loginRules = {
-  account: [{ required: true, message: '请输入手机号或邮箱', trigger: 'blur' }],
+  account: [{ required: true, message: '请输入账号、邮箱、手机号或昵称', trigger: 'blur' }],
   password: [{ required: true, min: 8, message: '请输入至少 8 位密码', trigger: 'blur' }],
 }
 
@@ -111,8 +111,10 @@ async function handleLogin() {
       userRole: data.user?.role || selectedRole.value,
       userInfo: data.user,
     })
-  } catch {
-    // Element Plus has already rendered field-level validation messages.
+  } catch (error) {
+    if (!error?.response) {
+      // Element Plus has already rendered field-level validation messages.
+    }
   }
 }
 
@@ -129,8 +131,10 @@ async function handleRegister() {
       userRole: data.user?.role || selectedRole.value,
       userInfo: data.user,
     })
-  } catch {
-    // Element Plus has already rendered field-level validation messages.
+  } catch (error) {
+    if (!error?.response) {
+      // Element Plus has already rendered field-level validation messages.
+    }
   }
 }
 

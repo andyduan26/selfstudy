@@ -29,6 +29,8 @@ POST /api/auth/token/
 POST /api/auth/token/refresh/
 ```
 
+登录账号支持 `username`、邮箱、手机号、昵称，密码为注册时设置的密码。后端只保存加密后的密码哈希，不保存明文密码。
+
 前台注册：
 
 ```http

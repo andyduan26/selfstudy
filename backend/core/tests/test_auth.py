@@ -39,6 +39,18 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.data['user']['role'], User.Role.TEACHER)
         self.assertIn('access', response.data)
 
+        phone_response = self.client.post(reverse('token_obtain_pair'), {
+            'username': '13900139000',
+            'password': 'StrongPass12345',
+        }, format='json')
+        self.assertEqual(phone_response.status_code, status.HTTP_200_OK)
+
+        nickname_response = self.client.post(reverse('token_obtain_pair'), {
+            'username': '讲师',
+            'password': 'StrongPass12345',
+        }, format='json')
+        self.assertEqual(nickname_response.status_code, status.HTTP_200_OK)
+
     def test_user_can_update_own_profile(self):
         register_response = self.client.post('/api/users/register/', {
             'email': 'profile@example.com',
