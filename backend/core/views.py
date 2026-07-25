@@ -1,5 +1,10 @@
+from decimal import Decimal
+from uuid import uuid4
+
 from django.db import models
+from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -230,6 +235,70 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.is_staff:
+            return queryset
+        return queryset.filter(user=self.request.user)
+
+    @action(detail=False, methods=['post'], url_path='checkout')
+    def checkout(self, request):
+        course_id = request.data.get('course_id')
+        pay_method = request.data.get('pay_method') or Order.PayMethod.ALIPAY
+        course = Course.objects.select_related('teacher').filter(
+            pk=course_id,
+            status__in=[Course.Status.APPROVED, Course.Status.PUBLISHED],
+        ).first()
+        if not course:
+            return Response({'detail': '课程不存在或暂未上架'}, status=status.HTTP_404_NOT_FOUND)
+        if pay_method not in Order.PayMethod.values:
+            return Response({'detail': '支付方式不正确'}, status=status.HTTP_400_BAD_REQUEST)
+
+        paid_order = Order.objects.filter(
+            user=request.user,
+            course=course,
+            status__in=[Order.Status.PAID, Order.Status.COMPLETED],
+        ).first()
+        if paid_order:
+            return Response(self.get_serializer(paid_order).data)
+
+        amount = Decimal('0.00') if course.is_free else course.price
+        teacher_amount = (amount * course.teacher_share_rate / Decimal('100')).quantize(Decimal('0.01'))
+        platform_amount = amount - teacher_amount
+
+        with transaction.atomic():
+            order = Order.objects.create(
+                order_no=f'ORDER{timezone.now().strftime("%Y%m%d%H%M%S")}{uuid4().hex[:8].upper()}',
+                user=request.user,
+                course=course,
+                status=Order.Status.PAID,
+                pay_method=Order.PayMethod.FREE if amount <= 0 else pay_method,
+                trade_no=f'SIM{uuid4().hex[:16].upper()}',
+                amount=amount,
+                teacher_share_amount=teacher_amount,
+                platform_share_amount=platform_amount,
+                paid_at=timezone.now(),
+                remark='前台模拟支付成功',
+            )
+            RevenueRecord.objects.create(
+                teacher=course.teacher,
+                course=course,
+                order=order,
+                gross_amount=amount,
+                teacher_amount=teacher_amount,
+                platform_amount=platform_amount,
+                teacher_share_rate=course.teacher_share_rate,
+                platform_share_rate=course.platform_share_rate,
+                status=RevenueRecord.Status.WITHDRAWABLE,
+                settled_at=timezone.now(),
+            )
+            Course.objects.filter(pk=course.pk).update(sales_count=models.F('sales_count') + 1)
+            TeacherProfile.objects.filter(pk=course.teacher_id).update(
+                total_students=models.F('total_students') + 1,
+                total_revenue=models.F('total_revenue') + teacher_amount,
+            )
+        return Response(self.get_serializer(order).data, status=status.HTTP_201_CREATED)
+
 
 class RevenueRecordViewSet(viewsets.ModelViewSet):
     queryset = RevenueRecord.objects.select_related('teacher', 'course', 'order').all()
@@ -270,8 +339,17 @@ class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        course_id = self.request.query_params.get('course')
+        if course_id:
+            queryset = queryset.filter(course_id=course_id)
+        if self.request.user.is_staff:
+            return queryset
+        return queryset.filter(status=Comment.Status.VISIBLE)
+
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, status=Comment.Status.PENDING)
 
 
 class FavoriteViewSet(viewsets.ModelViewSet):

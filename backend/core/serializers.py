@@ -195,9 +195,23 @@ class TeacherWorkUploadSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+    course_detail = CourseSerializer(source='course', read_only=True)
+
     class Meta:
         model = Order
         fields = '__all__'
+        read_only_fields = (
+            'order_no',
+            'user',
+            'status',
+            'trade_no',
+            'amount',
+            'refund_amount',
+            'platform_share_amount',
+            'teacher_share_amount',
+            'paid_at',
+            'refunded_at',
+        )
 
 
 class RevenueRecordSerializer(serializers.ModelSerializer):
@@ -215,9 +229,13 @@ class WithdrawalSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    user_detail = UserSerializer(source='user', read_only=True)
+    course_title = serializers.CharField(source='course.title', read_only=True)
+
     class Meta:
         model = Comment
         fields = '__all__'
+        read_only_fields = ('user', 'status', 'audit_remark')
 
 
 class FavoriteSerializer(serializers.ModelSerializer):

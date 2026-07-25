@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Course, CourseAttachment, CourseCategory, Order, RevenueRecord, TeacherApplication, TeacherProfile, User, Video
+from core.models import Comment, Course, CourseAttachment, CourseCategory, Order, RevenueRecord, TeacherApplication, TeacherProfile, User, Video
 
 
 class AuthApiTests(APITestCase):
@@ -326,3 +326,65 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(response.data['total'], 70)
         self.assertEqual(response.data['withdrawable'], 70)
         self.assertEqual(response.data['rows'][0]['course'], course.id)
+
+    def test_user_can_checkout_course_and_create_revenue(self):
+        buyer = User.objects.create_user(username='pay-user@example.com', email='pay-user@example.com', password='StrongPass12345')
+        teacher_user = User.objects.create_user(
+            username='pay-teacher@example.com',
+            email='pay-teacher@example.com',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        teacher = TeacherProfile.objects.create(user=teacher_user, real_name='支付老师', direction='职业技能')
+        category = CourseCategory.objects.create(name='支付分类', slug='pay-course')
+        course = Course.objects.create(
+            teacher=teacher,
+            category=category,
+            title='付费课程',
+            status=Course.Status.PUBLISHED,
+            price='100.00',
+            teacher_share_rate='70.00',
+            platform_share_rate='30.00',
+        )
+        self.client.force_authenticate(user=buyer)
+
+        response = self.client.post('/api/orders/checkout/', {
+            'course_id': course.id,
+            'pay_method': Order.PayMethod.ALIPAY,
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        order = Order.objects.get(user=buyer, course=course)
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertEqual(order.teacher_share_amount, 70)
+        self.assertTrue(RevenueRecord.objects.filter(order=order, teacher_amount='70.00').exists())
+        course.refresh_from_db()
+        teacher.refresh_from_db()
+        self.assertEqual(course.sales_count, 1)
+        self.assertEqual(teacher.total_revenue, 70)
+
+    def test_comment_create_is_pending_and_public_list_only_visible(self):
+        user = User.objects.create_user(username='comment-user@example.com', email='comment-user@example.com', password='StrongPass12345')
+        teacher_user = User.objects.create_user(username='comment-teacher@example.com', email='comment-teacher@example.com', password='StrongPass12345')
+        teacher = TeacherProfile.objects.create(user=teacher_user, real_name='评论老师', direction='设计')
+        category = CourseCategory.objects.create(name='评论分类', slug='comment-course')
+        course = Course.objects.create(teacher=teacher, category=category, title='评论课程', status=Course.Status.PUBLISHED)
+        Comment.objects.create(user=user, course=course, rating=5, content='已经通过的评论', status=Comment.Status.VISIBLE)
+        self.client.force_authenticate(user=user)
+
+        create_response = self.client.post('/api/comments/', {
+            'course': course.id,
+            'rating': 4,
+            'content': '提交后等待审核',
+        }, format='json')
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(create_response.data['status'], Comment.Status.PENDING)
+        self.client.force_authenticate(user=None)
+
+        list_response = self.client.get(f'/api/comments/?course={course.id}')
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        contents = [item['content'] for item in list_response.data['results']]
+        self.assertEqual(contents, ['已经通过的评论'])

@@ -27,6 +27,7 @@
           </div>
           <div class="hero-actions">
             <el-button type="primary" size="large" @click="handlePreview">立即试看</el-button>
+            <el-button size="large" @click="openPayDialog">{{ course.isFree ? '免费加入' : '开通学习' }}</el-button>
             <el-button size="large" @click="dialogVisible = true">加入学习计划</el-button>
           </div>
         </div>
@@ -53,6 +54,44 @@
           <p>适合零基础学习者、转行入门者，以及希望用完整项目巩固技能的自学用户。</p>
         </el-tab-pane>
       </el-tabs>
+
+      <section class="comment-section">
+        <div class="section-heading compact-heading">
+          <div>
+            <p class="section-kicker">Course Reviews</p>
+            <h2>学员评论</h2>
+          </div>
+          <span>{{ comments.length }} 条可见评论</span>
+        </div>
+
+        <div class="comment-editor">
+          <el-rate v-model="commentForm.rating" />
+          <el-input
+            v-model="commentForm.content"
+            type="textarea"
+            :rows="4"
+            maxlength="300"
+            show-word-limit
+            placeholder="写下你的学习感受，提交后将进入后台审核"
+          />
+          <div class="comment-actions">
+            <span>评论审核通过后会展示在课程页。</span>
+            <el-button type="primary" :loading="commentSubmitting" @click="submitComment">提交评论</el-button>
+          </div>
+        </div>
+
+        <div v-if="comments.length" class="comment-list">
+          <article v-for="item in comments" :key="item.id" class="comment-card">
+            <div>
+              <strong>{{ item.user_detail?.nickname || item.user_detail?.username || '学员' }}</strong>
+              <span>{{ formatDate(item.created_at) }}</span>
+            </div>
+            <el-rate :model-value="item.rating" disabled />
+            <p>{{ item.content }}</p>
+          </article>
+        </div>
+        <el-empty v-else description="暂无已通过评论" />
+      </section>
     </div>
 
     <aside class="side-card">
@@ -61,6 +100,7 @@
       <div class="info-line"><span>课时</span><strong>{{ course.lessons }} 节</strong></div>
       <div class="info-line"><span>学习人数</span><strong>{{ course.students.toLocaleString() }}</strong></div>
       <div class="info-line"><span>评分</span><strong>{{ course.rating }}</strong></div>
+      <el-button class="side-card__button" type="primary" @click="openPayDialog">{{ course.isFree ? '免费加入学习' : '开通后学习完整课程' }}</el-button>
     </aside>
   </section>
   <NotFoundView v-else />
@@ -72,21 +112,53 @@
       <el-button type="primary" @click="dialogVisible = false">确认</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="payDialogVisible" title="开通学习权限" width="460px">
+    <div v-if="course" class="pay-dialog">
+      <div class="pay-dialog__row">
+        <span>课程</span>
+        <strong>{{ course.title }}</strong>
+      </div>
+      <div class="pay-dialog__row">
+        <span>金额</span>
+        <strong>{{ course.price }}</strong>
+      </div>
+      <el-radio-group v-model="payForm.pay_method" class="pay-methods">
+        <el-radio-button label="alipay">支付宝</el-radio-button>
+        <el-radio-button label="wechat">微信</el-radio-button>
+      </el-radio-group>
+      <p>当前为开发阶段模拟支付，确认后会在后端生成已支付订单和讲师收益记录。</p>
+    </div>
+    <template #footer>
+      <el-button @click="payDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="paying" @click="submitPayment">确认支付</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { createCourseCommentApi, getCourseCommentsApi } from '@/api/comment'
 import { getCourseApi } from '@/api/course'
+import { checkoutCourseApi } from '@/api/order'
+import { useAuthStore } from '@/stores/auth'
 import { categories } from '@/data/platform'
 import NotFoundView from './NotFoundView.vue'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const dialogVisible = ref(false)
+const payDialogVisible = ref(false)
 const loading = ref(false)
+const paying = ref(false)
+const commentSubmitting = ref(false)
 const rawCourse = ref(null)
+const comments = ref([])
+const payForm = ref({ pay_method: 'alipay' })
+const commentForm = ref({ rating: 5, content: '' })
 const course = computed(() => (rawCourse.value ? mapCourse(rawCourse.value) : null))
 const teacher = computed(() => rawCourse.value?.teacher_detail || null)
 const chapterGroups = computed(() => {
@@ -143,13 +215,70 @@ function playLesson(lesson) {
 async function loadCourse() {
   loading.value = true
   rawCourse.value = null
+  comments.value = []
   try {
     rawCourse.value = await getCourseApi(route.params.id)
+    await loadComments()
   } catch {
     rawCourse.value = null
   } finally {
     loading.value = false
   }
+}
+
+async function loadComments() {
+  comments.value = await getCourseCommentsApi(route.params.id)
+}
+
+function openPayDialog() {
+  if (!authStore.isLoggedIn) {
+    router.push(`/login?redirect=/courses/${course.value.id}`)
+    return
+  }
+  payDialogVisible.value = true
+}
+
+async function submitPayment() {
+  paying.value = true
+  try {
+    await checkoutCourseApi({
+      course_id: course.value.id,
+      pay_method: payForm.value.pay_method,
+    })
+    payDialogVisible.value = false
+    ElMessage.success('支付成功，已开通课程学习权限')
+    await loadCourse()
+  } finally {
+    paying.value = false
+  }
+}
+
+async function submitComment() {
+  if (!authStore.isLoggedIn) {
+    router.push(`/login?redirect=/courses/${course.value.id}`)
+    return
+  }
+  if (!commentForm.value.content.trim()) {
+    ElMessage.warning('请先填写评论内容')
+    return
+  }
+  commentSubmitting.value = true
+  try {
+    await createCourseCommentApi({
+      course: course.value.id,
+      rating: commentForm.value.rating,
+      content: commentForm.value.content.trim(),
+    })
+    commentForm.value = { rating: 5, content: '' }
+    ElMessage.success('评论提交成功，审核通过后展示')
+  } finally {
+    commentSubmitting.value = false
+  }
+}
+
+function formatDate(value) {
+  if (!value) return ''
+  return new Date(value).toLocaleDateString('zh-CN')
 }
 
 function mapCourse(item) {
