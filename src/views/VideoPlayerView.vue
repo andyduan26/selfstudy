@@ -2,7 +2,7 @@
   <section v-if="course" class="player-page">
     <div class="player-shell">
       <div class="video-box">
-        <video v-if="currentVideoUrl" class="course-video" :src="currentVideoUrl" controls preload="metadata" />
+        <video v-if="currentVideoUrl" class="course-video" :src="currentVideoUrl" :poster="course.coverUrl" controls preload="metadata" />
         <template v-else>
           <div class="play-symbol">▶</div>
           <h1>{{ course.title }}</h1>
@@ -48,7 +48,11 @@ const route = useRoute()
 const router = useRouter()
 const rawCourse = ref(null)
 const activeLessonId = ref(null)
-const course = computed(() => rawCourse.value ? { id: rawCourse.value.id, title: rawCourse.value.title } : null)
+const course = computed(() => rawCourse.value ? {
+  id: rawCourse.value.id,
+  title: rawCourse.value.title,
+  coverUrl: rawCourse.value.cover || rawCourse.value.cover_url || '',
+} : null)
 const chapterGroups = computed(() => (rawCourse.value?.chapters || []).map((chapter, chapterIndex) => ({
   id: chapter.id,
   index: chapterIndex + 1,

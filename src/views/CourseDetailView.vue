@@ -12,7 +12,10 @@
       </el-breadcrumb>
 
       <div class="detail-hero">
-        <div class="course-cover large">{{ course.cover }}</div>
+        <div class="course-cover large course-detail-cover">
+          <img v-if="course.coverUrl" :src="course.coverUrl" :alt="course.title" />
+          <span v-else>{{ course.cover }}</span>
+        </div>
         <div>
           <p class="section-kicker">{{ categoryName(course.category) }}</p>
           <h1>{{ course.title }}</h1>
@@ -164,6 +167,7 @@ function mapCourse(item) {
     rating: Number(item.rating || 0).toFixed(1),
     summary: item.description || item.subtitle || '课程已通过平台审核，更多内容请参考课程目录。',
     cover: (item.title || '课程').slice(0, 3).toUpperCase(),
+    coverUrl: item.cover || item.cover_url || '',
     price: price > 0 ? `¥${price.toFixed(0)}` : '免费',
     isFree: price <= 0 || item.is_free,
   }
