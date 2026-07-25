@@ -27,6 +27,65 @@ def notify_teacher_application(application, subject, message):
         send_mail(subject, message, None, [application.user.email], fail_silently=settings.EMAIL_FAIL_SILENTLY)
 
 
+def format_datetime(value):
+    if not value:
+        return '-'
+    return timezone.localtime(value).strftime('%Y年%m月%d日 %H:%M')
+
+
+def user_display_name(user):
+    return user.nickname or user.username
+
+
+def build_teacher_approved_message(application):
+    user = application.user
+    return f"""尊敬的 {user_display_name(user)}：
+
+您好！
+
+恭喜您，您提交的“我要自学网”讲师认证申请已审核通过。感谢您愿意将专业知识与学习者分享，平台已为您开通认证讲师身份。
+
+账号信息：
+昵称：{user_display_name(user)}
+账号：{user.username}
+注册时间：{format_datetime(user.date_joined)}
+认证方向：{application.direction}
+审核时间：{format_datetime(application.reviewed_at)}
+
+您现在可以登录平台进入个人中心，上传课程作品、填写课程说明，并管理后续内容。
+
+感谢您对我要自学网的信任与支持。期待您的课程帮助更多学习者系统成长。
+
+我要自学网运营团队
+{format_datetime(timezone.now())}
+"""
+
+
+def build_teacher_rejected_message(application):
+    user = application.user
+    return f"""尊敬的 {user_display_name(user)}：
+
+您好！
+
+感谢您提交“我要自学网”讲师认证申请。很遗憾，本次资料暂未通过审核。
+
+账号信息：
+昵称：{user_display_name(user)}
+账号：{user.username}
+注册时间：{format_datetime(user.date_joined)}
+申请方向：{application.direction}
+审核时间：{format_datetime(application.reviewed_at)}
+
+审核备注：
+{application.audit_remark}
+
+您可以根据审核备注补充或修正资料后再次提交申请。感谢您的理解与支持。
+
+我要自学网运营团队
+{format_datetime(timezone.now())}
+"""
+
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     list_display = ('id', 'username', 'nickname', 'phone', 'role', 'is_verified_teacher', 'is_active', 'date_joined')
@@ -82,7 +141,7 @@ class TeacherApplicationAdmin(admin.ModelAdmin):
             notify_teacher_application(
                 application,
                 '我要自学网讲师认证审核通过',
-                f'{application.real_name}，你的讲师认证申请已审核通过，现在可以登录平台上传课程作品。',
+                build_teacher_approved_message(application),
             )
             count += 1
         self.message_user(request, f'已通过 {count} 个讲师申请，并发送邮件通知。', messages.SUCCESS)
@@ -99,7 +158,7 @@ class TeacherApplicationAdmin(admin.ModelAdmin):
             notify_teacher_application(
                 application,
                 '我要自学网讲师认证审核结果',
-                f'{application.real_name}，你的讲师认证申请暂未通过。审核备注：{application.audit_remark}',
+                build_teacher_rejected_message(application),
             )
             count += 1
         self.message_user(request, f'已驳回 {count} 个讲师申请，并发送邮件通知。', messages.WARNING)
