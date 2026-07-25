@@ -39,7 +39,45 @@ cp .env.example .env
 backend/media/
 ```
 
-当前邮件通知使用控制台输出。生产环境可在 `backend/.env` 中配置 SMTP 邮件服务。
+## 邮件通知配置
+
+讲师认证审核通过或驳回时，Django 后台会给申请人的邮箱发送通知。
+
+开发环境默认使用控制台输出：
+
+```text
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+```
+
+需要真实发送邮件时，在 `backend/.env` 中改为 SMTP，例如 163 邮箱：
+
+```text
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+DEFAULT_FROM_EMAIL=你的邮箱@163.com
+EMAIL_HOST=smtp.163.com
+EMAIL_PORT=465
+EMAIL_HOST_USER=你的邮箱@163.com
+EMAIL_HOST_PASSWORD=邮箱授权码
+EMAIL_USE_TLS=False
+EMAIL_USE_SSL=True
+EMAIL_TIMEOUT=10
+EMAIL_FAIL_SILENTLY=False
+```
+
+QQ 邮箱配置类似：
+
+```text
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+DEFAULT_FROM_EMAIL=你的邮箱@qq.com
+EMAIL_HOST=smtp.qq.com
+EMAIL_PORT=465
+EMAIL_HOST_USER=你的邮箱@qq.com
+EMAIL_HOST_PASSWORD=邮箱授权码
+EMAIL_USE_TLS=False
+EMAIL_USE_SSL=True
+```
+
+注意：`EMAIL_HOST_PASSWORD` 填邮箱后台生成的 SMTP 授权码，不是邮箱登录密码。修改后重启 Django 后端，再到后台审核讲师申请即可触发邮件。
 
 如果本机暂时没有 MySQL，可在 `backend/.env` 中设置：
 

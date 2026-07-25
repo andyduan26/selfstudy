@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth.admin import UserAdmin
 from django.core.mail import send_mail
 from django.utils import timezone
@@ -23,7 +24,7 @@ from .models import (
 
 def notify_teacher_application(application, subject, message):
     if application.user.email:
-        send_mail(subject, message, None, [application.user.email], fail_silently=True)
+        send_mail(subject, message, None, [application.user.email], fail_silently=settings.EMAIL_FAIL_SILENTLY)
 
 
 @admin.register(User)
