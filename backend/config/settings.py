@@ -154,9 +154,22 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID', '')
+R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID', '')
+R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY', '')
+R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', '')
+R2_PUBLIC_BASE_URL = os.getenv('R2_PUBLIC_BASE_URL', '')
+R2_HLS_PREFIX = os.getenv('R2_HLS_PREFIX', 'courses/hls')
+USE_R2_MEDIA_STORAGE = all([
+    R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME,
+    R2_PUBLIC_BASE_URL,
+])
 STORAGES = {
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'core.storage_backends.R2MediaStorage' if USE_R2_MEDIA_STORAGE else 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
@@ -218,10 +231,3 @@ ALIPAY_APP_PRIVATE_KEY = os.getenv('ALIPAY_APP_PRIVATE_KEY', '')
 ALIPAY_PUBLIC_KEY = os.getenv('ALIPAY_PUBLIC_KEY', '')
 ALIPAY_NOTIFY_URL = os.getenv('ALIPAY_NOTIFY_URL', 'http://127.0.0.1:8000/api/orders/alipay-notify/')
 ALIPAY_RETURN_URL = os.getenv('ALIPAY_RETURN_URL', 'http://127.0.0.1:5173/user')
-
-R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID', '')
-R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID', '')
-R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY', '')
-R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', '')
-R2_PUBLIC_BASE_URL = os.getenv('R2_PUBLIC_BASE_URL', '')
-R2_HLS_PREFIX = os.getenv('R2_HLS_PREFIX', 'courses/hls')

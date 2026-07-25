@@ -223,6 +223,9 @@ R2_PUBLIC_BASE_URL=https://pub-xxxx.r2.dev
 R2_HLS_PREFIX=courses/hls
 ```
 
+生产环境配置完整 R2 后，课程封面、课程视频、讲师申请材料等上传文件会直接保存到 R2。
+不要依赖 Railway 容器本地 `/media/` 目录保存上传文件，容器重新部署后本地媒体文件可能丢失。
+
 部署完成后，先访问：
 
 ```text
