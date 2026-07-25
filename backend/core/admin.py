@@ -179,11 +179,58 @@ class ChapterInline(admin.TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'teacher', 'category', 'status', 'price', 'cover', 'view_count', 'sales_count', 'sort_weight')
-    list_filter = ('status', 'category', 'level', 'is_free')
-    search_fields = ('title', 'teacher__real_name')
+    list_display = (
+        'id',
+        'title',
+        'teacher',
+        'category',
+        'status',
+        'price',
+        'cover',
+        'view_count',
+        'sales_count',
+        'reviewed_by',
+        'reviewed_at',
+        'published_at',
+        'sort_weight',
+    )
+    list_filter = ('status', 'category', 'teacher', 'level', 'is_free')
+    search_fields = ('title', 'subtitle', 'teacher__real_name', 'category__name')
     ordering = ('-sort_weight', '-created_at')
     inlines = [ChapterInline]
+    actions = ('approve_courses', 'approve_and_publish_courses', 'reject_courses')
+
+    @admin.action(description='审核通过课程作品')
+    def approve_courses(self, request, queryset):
+        count = queryset.update(
+            status=Course.Status.APPROVED,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+            audit_remark='审核通过。',
+        )
+        self.message_user(request, f'已审核通过 {count} 个课程作品。', messages.SUCCESS)
+
+    @admin.action(description='审核通过并发布课程作品')
+    def approve_and_publish_courses(self, request, queryset):
+        now = timezone.now()
+        count = queryset.update(
+            status=Course.Status.PUBLISHED,
+            reviewed_by=request.user,
+            reviewed_at=now,
+            published_at=now,
+            audit_remark='审核通过并发布。',
+        )
+        self.message_user(request, f'已审核通过并发布 {count} 个课程作品。', messages.SUCCESS)
+
+    @admin.action(description='驳回课程作品')
+    def reject_courses(self, request, queryset):
+        count = queryset.update(
+            status=Course.Status.REJECTED,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+            audit_remark='课程资料暂未通过审核，请补充课程说明、封面、视频或附件后重新提交。',
+        )
+        self.message_user(request, f'已驳回 {count} 个课程作品。', messages.WARNING)
 
 
 class VideoInline(admin.TabularInline):
