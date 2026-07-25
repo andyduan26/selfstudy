@@ -285,6 +285,10 @@ h3 {
 .income-summary > div,
 .withdraw-card,
 .chart-card,
+.dashboard-block,
+.work-card,
+.review-card,
+.todo-card,
 .lesson-sidebar,
 .preview-banner,
 .login-panel {
@@ -376,7 +380,10 @@ h3 {
 .course-card:hover,
 .ranking-panel:hover,
 .side-card:hover,
-.center-panel:hover {
+.center-panel:hover,
+.work-card:hover,
+.review-card:hover,
+.todo-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
 }
@@ -828,6 +835,101 @@ h3 {
   color: var(--muted);
 }
 
+.teacher-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.dashboard-block {
+  padding: 24px;
+}
+
+.dashboard-block--wide {
+  grid-row: span 2;
+}
+
+.work-strip,
+.review-list,
+.todo-list {
+  display: grid;
+  gap: 14px;
+}
+
+.work-card,
+.review-card,
+.todo-card {
+  padding: 18px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.work-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 18px;
+  align-items: center;
+}
+
+.work-card h3 {
+  margin: 12px 0 0;
+  font-size: 18px;
+}
+
+.work-card__meta {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.work-card__meta span,
+.work-card__meta small,
+.review-card small,
+.todo-card small {
+  color: var(--muted);
+}
+
+.work-card__meta strong {
+  font-size: 22px;
+}
+
+.review-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-card__top span {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.review-card p {
+  margin: 10px 0 12px;
+  color: #313136;
+}
+
+.todo-card {
+  width: 100%;
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.todo-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.todo-card strong {
+  font-size: 24px;
+}
+
 .income-summary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -935,8 +1037,14 @@ h3 {
   .course-grid--list,
   .stats-grid,
   .income-summary,
-  .profile-grid {
+  .profile-grid,
+  .teacher-dashboard-grid,
+  .work-card {
     grid-template-columns: 1fr;
+  }
+
+  .work-card__meta {
+    text-align: left;
   }
 
   .side-card,

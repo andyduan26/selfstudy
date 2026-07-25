@@ -97,7 +97,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, Document, Money, Promotion, User, Wallet } from '@element-plus/icons-vue'
 import { getCurrentUserApi } from '@/api/auth'
 import { uploadTeacherWorkApi } from '@/api/teacher'
@@ -167,8 +167,10 @@ const withdrawRules = {
   account: [{ required: true, message: '请选择提现账户', trigger: 'change' }],
 }
 
-const isTeacher = computed(() => authStore.role === 'teacher')
-const visibleMenus = computed(() => allMenus.filter((item) => item.role === 'all' || item.role === authStore.role))
+const isTeacherCertified = computed(() => Boolean(profileUser.value?.is_verified_teacher || authStore.user?.is_verified_teacher))
+const effectiveRole = computed(() => (currentRole.value === 'teacher' && isTeacherCertified.value ? 'teacher' : 'user'))
+const isTeacher = computed(() => effectiveRole.value === 'teacher')
+const visibleMenus = computed(() => allMenus.filter((item) => item.role === 'all' || item.role === effectiveRole.value))
 const userSummary = computed(() => {
   const user = profileUser.value
   if (!user) return '正在读取你的账号资料。'
@@ -181,6 +183,12 @@ onMounted(async () => {
     const user = await getCurrentUserApi()
     profileUser.value = user
     authStore.updateUser(user)
+    if (authStore.role === 'teacher' && user.is_verified_teacher) {
+      currentRole.value = 'teacher'
+      activeMenu.value = 'dashboard'
+    } else {
+      currentRole.value = 'user'
+    }
   } catch {
     // Request interceptor already shows errors.
   }
@@ -197,8 +205,19 @@ watch(
 )
 
 function handleRoleChange(role) {
+  if (role === 'teacher' && !isTeacherCertified.value) {
+    currentRole.value = 'user'
+    ElMessageBox.alert('抱歉，请先申请认证教师', '无法切换身份', {
+      confirmButtonText: '去申请',
+      type: 'warning',
+    }).then(() => {
+      activeMenu.value = 'apply'
+    })
+    return
+  }
   authStore.login({ accessToken: authStore.token || 'demo-token', userRole: role })
   ElMessage.success(role === 'teacher' ? '已切换为认证讲师' : '已切换为普通用户')
+  activeMenu.value = role === 'teacher' ? 'dashboard' : 'profile'
 }
 
 function handleCover(file) {
