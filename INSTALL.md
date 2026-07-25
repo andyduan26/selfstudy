@@ -164,3 +164,65 @@ R2_HLS_PREFIX=courses/hls
 ```bash
 .venv/bin/python manage.py transcode_hls --video-id 1 --upload-r2-only
 ```
+
+## Vercel + Railway 部署
+
+前端部署到 Vercel，项目根目录就是仓库根目录。
+
+Vercel 配置：
+
+```text
+Framework Preset: Vite
+Build Command: npm run build
+Output Directory: dist
+```
+
+Vercel 环境变量：
+
+```text
+VITE_API_BASE_URL=https://你的-railway-后端域名
+```
+
+后端部署到 Railway，Root Directory 选择：
+
+```text
+backend
+```
+
+Railway 需要添加 PostgreSQL 数据库，并把数据库连接写入：
+
+```text
+DATABASE_URL=Railway PostgreSQL 连接地址
+```
+
+Railway 后端环境变量示例：
+
+```text
+DJANGO_DEBUG=False
+DJANGO_SECRET_KEY=请生成一个强随机密钥
+DJANGO_ALLOWED_HOSTS=你的-railway-后端域名
+CORS_ALLOWED_ORIGINS=https://你的-vercel-前端域名
+FRONTEND_URL=https://你的-vercel-前端域名/
+DATABASE_URL=Railway PostgreSQL 连接地址
+ALIPAY_ENV=sandbox
+ALIPAY_APP_ID=你的支付宝 APP_ID
+ALIPAY_APP_PRIVATE_KEY=你的应用私钥
+ALIPAY_PUBLIC_KEY=支付宝公钥
+ALIPAY_NOTIFY_URL=https://你的-railway-后端域名/api/orders/alipay-notify/
+ALIPAY_RETURN_URL=https://你的-vercel-前端域名/user
+R2_ACCOUNT_ID=你的 Cloudflare Account ID
+R2_ACCESS_KEY_ID=你的 R2 Access Key ID
+R2_SECRET_ACCESS_KEY=你的 R2 Secret Access Key
+R2_BUCKET_NAME=video-hls
+R2_PUBLIC_BASE_URL=https://pub-xxxx.r2.dev
+R2_HLS_PREFIX=courses/hls
+```
+
+部署完成后，先访问：
+
+```text
+https://你的-railway-后端域名/admin/
+https://你的-vercel-前端域名/
+```
+
+确认后台、课程列表、播放页和支付宝沙箱回调 URL 都可访问后，再测试支付闭环。

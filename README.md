@@ -30,6 +30,27 @@ cp .env.example .env
 npm run build
 ```
 
+## 部署
+
+- 前端：Vercel，使用 `vercel.json`，构建输出 `dist`。
+- 后端：Railway，使用 `backend/Procfile`、`backend/nixpacks.toml` 和 PostgreSQL。
+- 视频：Cloudflare R2，HLS 地址保存在 `Video.hls_url`。
+
+上线时前端设置：
+
+```text
+VITE_API_BASE_URL=https://你的-railway-后端域名
+```
+
+后端设置：
+
+```text
+DJANGO_DEBUG=False
+DATABASE_URL=Railway PostgreSQL 地址
+CORS_ALLOWED_ORIGINS=https://你的-vercel-前端域名
+FRONTEND_URL=https://你的-vercel-前端域名/
+```
+
 ## 目录
 
 ```text

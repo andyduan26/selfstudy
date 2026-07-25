@@ -1,5 +1,12 @@
 # 更新日志
 
+## 0.5.29
+
+- 增加 Vercel 前端部署配置 `vercel.json`。
+- 增加 Railway 后端部署配置 `railway.json`、`Procfile`、`nixpacks.toml`。
+- 后端增加 PostgreSQL、Gunicorn、WhiteNoise 和生产静态文件配置。
+- 文档补充 Vercel/Railway 环境变量和支付宝线上回调配置。
+
 ## 0.5.28
 
 - 播放页自动把后端返回的相对 HLS 地址补全为 API 域名，避免前端端口请求媒体文件。
