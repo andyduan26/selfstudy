@@ -46,6 +46,8 @@ VITE_API_BASE_URL=https://你的-railway-后端域名
 
 ```text
 DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=你的-railway-后端域名
+CSRF_TRUSTED_ORIGINS=https://你的-railway-后端域名,https://你的-vercel-前端域名
 DATABASE_URL=Railway PostgreSQL 地址
 CORS_ALLOWED_ORIGINS=https://你的-vercel-前端域名
 FRONTEND_URL=https://你的-vercel-前端域名/

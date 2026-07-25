@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.5.31
+
+- 增加 Railway/Vercel 生产环境的 CSRF 信任源配置。
+- 增加反向代理 HTTPS 识别配置，修复后台登录 Forbidden 和 API 根路由生成 http 链接的问题。
+
 ## 0.5.30
 
 - Railway 后端部署改为 Dockerfile 构建，使用 Python 3.11 slim 并安装 ffmpeg。
