@@ -122,6 +122,15 @@ HLS 播放字段：
 python manage.py transcode_hls --pending
 ```
 
+R2 上传：
+
+```bash
+python manage.py transcode_hls --upload-r2-only
+python manage.py transcode_hls --video-id 1 --upload-r2-only
+```
+
+当 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`、`R2_BUCKET_NAME`、`R2_PUBLIC_BASE_URL` 配置完整时，转码完成会自动上传 HLS 文件到 Cloudflare R2，并把 `hls_url` 更新为 R2 公网地址。
+
 大文件上传配置：
 
 ```text

@@ -1,11 +1,15 @@
 import json
+from pathlib import Path
+from unittest.mock import patch
 
+from django.conf import settings
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from core.models import Comment, Course, CourseAttachment, CourseCategory, Order, RevenueRecord, TeacherApplication, TeacherProfile, User, Video
+from core.r2_storage import upload_hls_directory_to_r2
 
 
 class AuthApiTests(APITestCase):
@@ -387,6 +391,42 @@ class TeacherWorkflowTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(Order.objects.filter(user=buyer, course=course).exists())
+
+    def test_r2_upload_updates_hls_url_when_configured(self):
+        teacher_user = User.objects.create_user(username='r2-teacher@example.com', email='r2-teacher@example.com', password='StrongPass12345')
+        teacher = TeacherProfile.objects.create(user=teacher_user, real_name='R2老师', direction='视频')
+        category = CourseCategory.objects.create(name='R2分类', slug='r2-course')
+        course = Course.objects.create(teacher=teacher, category=category, title='R2课程', status=Course.Status.PUBLISHED)
+        chapter = course.chapters.create(title='第一章')
+        video = Video.objects.create(chapter=chapter, title='HLS视频', hls_path='courses/hls/test-video')
+        hls_dir = Path(settings.MEDIA_ROOT) / 'courses' / 'hls' / 'test-video'
+        hls_dir.mkdir(parents=True, exist_ok=True)
+        (hls_dir / 'index.m3u8').write_text('#EXTM3U\nsegment_000.ts\n')
+        (hls_dir / 'segment_000.ts').write_bytes(b'ts-bytes')
+
+        class FakeClient:
+            def __init__(self):
+                self.uploads = []
+
+            def upload_file(self, filename, bucket, key, ExtraArgs=None):
+                self.uploads.append((filename, bucket, key, ExtraArgs))
+
+        fake_client = FakeClient()
+        with self.settings(
+            R2_ACCOUNT_ID='account',
+            R2_ACCESS_KEY_ID='access',
+            R2_SECRET_ACCESS_KEY='secret',
+            R2_BUCKET_NAME='bucket',
+            R2_PUBLIC_BASE_URL='https://cdn.example.com',
+            R2_HLS_PREFIX='courses/hls',
+        ), patch('core.r2_storage.boto3.client', return_value=fake_client):
+            ok, url = upload_hls_directory_to_r2(video)
+
+        self.assertTrue(ok)
+        self.assertEqual(url, 'https://cdn.example.com/courses/hls/%s/index.m3u8' % video.id)
+        self.assertEqual(len(fake_client.uploads), 2)
+        video.refresh_from_db()
+        self.assertEqual(video.hls_url, url)
 
     def test_comment_create_is_visible_and_public_list_includes_it(self):
         user = User.objects.create_user(username='comment-user@example.com', email='comment-user@example.com', password='StrongPass12345')

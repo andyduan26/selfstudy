@@ -140,7 +140,7 @@ cd backend
 backend/media/courses/hls/<video_id>/index.m3u8
 ```
 
-Cloudflare R2 预留环境变量：
+Cloudflare R2 环境变量：
 
 ```text
 R2_ACCOUNT_ID=
@@ -148,6 +148,19 @@ R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
 R2_BUCKET_NAME=
 R2_PUBLIC_BASE_URL=
+R2_HLS_PREFIX=courses/hls
 ```
 
-下一阶段可以把本地 HLS 目录上传到 R2，并把 `Video.hls_url` 改成 R2 公网地址。
+配置完整后，视频转码完成会自动把 HLS 文件上传到 R2，并把 `Video.hls_url` 改成 R2 公网播放地址。
+
+只上传已有 HLS 目录到 R2，不重新转码：
+
+```bash
+.venv/bin/python manage.py transcode_hls --upload-r2-only
+```
+
+只上传单个视频：
+
+```bash
+.venv/bin/python manage.py transcode_hls --video-id 1 --upload-r2-only
+```

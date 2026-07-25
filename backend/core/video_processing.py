@@ -5,6 +5,7 @@ from pathlib import Path
 from django.conf import settings
 
 from .models import Video
+from .r2_storage import upload_hls_directory_to_r2
 
 
 def transcode_video_to_hls(video):
@@ -58,4 +59,5 @@ def transcode_video_to_hls(video):
     video.hls_url = f'{settings.MEDIA_URL}{relative_playlist}'.replace('\\', '/')
     video.transcode_status = 'completed'
     video.save(update_fields=['source_type', 'hls_path', 'hls_url', 'transcode_status', 'updated_at'])
+    upload_hls_directory_to_r2(video)
     return True, video.hls_url

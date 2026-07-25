@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from core.models import Video
+from core.r2_storage import upload_hls_directory_to_r2
 from core.video_processing import transcode_video_to_hls
 
 
@@ -10,6 +11,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--video-id', type=int, help='只转码指定视频 ID')
         parser.add_argument('--pending', action='store_true', help='只处理待转码视频')
+        parser.add_argument('--upload-r2-only', action='store_true', help='不重新转码，只把已有 HLS 目录上传到 Cloudflare R2')
 
     def handle(self, *args, **options):
         queryset = Video.objects.exclude(video_file='')
@@ -24,6 +26,13 @@ class Command(BaseCommand):
             return
 
         for video in queryset:
+            if options.get('upload_r2_only'):
+                ok, message = upload_hls_directory_to_r2(video)
+                if ok:
+                    self.stdout.write(self.style.SUCCESS(f'视频 {video.id} 上传 R2 完成：{message}'))
+                else:
+                    self.stdout.write(self.style.ERROR(f'视频 {video.id} 上传 R2 跳过：未配置 R2 或本地 HLS 不存在'))
+                continue
             ok, message = transcode_video_to_hls(video)
             if ok:
                 self.stdout.write(self.style.SUCCESS(f'视频 {video.id} 转码完成：{message}'))
