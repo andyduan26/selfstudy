@@ -156,6 +156,47 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(first_chapter.title, '第一章 课程介绍')
         self.assertTrue(first_chapter.is_free_preview)
 
+    def test_verified_teacher_can_upload_work_with_chapters_and_lessons(self):
+        user = User.objects.create_user(
+            username='teacher-lessons@example.com',
+            email='teacher-lessons@example.com',
+            phone='13800138005',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        TeacherProfile.objects.create(user=user, real_name='节课老师', direction='前端开发')
+        self.client.force_authenticate(user=user)
+
+        response = self.client.post('/api/courses/upload-work/', {
+            'title': '章节点播课程',
+            'category_name': '前端开发',
+            'description': '这是一门章下面包含多个节视频的课程。',
+            'price': '299.00',
+            'chapters': json.dumps([
+                {
+                    'title': '第一章 入门基础',
+                    'summary': '完成基础认知',
+                    'isFreePreview': True,
+                    'sortWeight': 1,
+                    'lessons': [
+                        {'title': '第 1 节 软件介绍', 'isFreePreview': True, 'sortWeight': 1},
+                        {'title': '第 2 节 基础操作', 'isFreePreview': False, 'sortWeight': 2},
+                    ],
+                },
+            ]),
+            'chapter_0_lesson_0_video': SimpleUploadedFile('lesson1.mp4', b'lesson-one', content_type='video/mp4'),
+            'chapter_0_lesson_1_video': SimpleUploadedFile('lesson2.mp4', b'lesson-two', content_type='video/mp4'),
+        }, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        course = Course.objects.get(title='章节点播课程')
+        self.assertEqual(course.chapters.count(), 1)
+        chapter = course.chapters.first()
+        self.assertEqual(chapter.title, '第一章 入门基础')
+        self.assertEqual(chapter.videos.count(), 2)
+        self.assertEqual(chapter.videos.order_by('sort_weight').first().title, '第 1 节 软件介绍')
+
     def test_verified_teacher_can_list_own_uploaded_works(self):
         user = User.objects.create_user(
             username='teacher-works@example.com',

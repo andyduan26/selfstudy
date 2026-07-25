@@ -527,11 +527,27 @@ h3 {
 
 .lesson-row {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr) auto;
+  grid-template-columns: 80px minmax(0, 1fr) auto auto;
   gap: 16px;
   align-items: center;
   padding: 18px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.chapter-directory {
+  padding: 12px 0 18px;
+}
+
+.chapter-directory h3,
+.player-chapter-group h3 {
+  margin: 10px 0 8px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.player-chapter-group {
+  padding: 8px 0;
 }
 
 .side-card {
@@ -971,6 +987,46 @@ h3 {
   padding-top: 4px;
 }
 
+.cover-preview {
+  width: 220px;
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cover-preview img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: var(--shadow);
+}
+
+.lesson-upload-list {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.lesson-upload-row {
+  display: grid;
+  grid-template-columns: 80px minmax(180px, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.lesson-upload-row > span {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.lesson-upload-row .el-form-item {
+  margin-bottom: 0;
+}
+
 .income-summary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1086,6 +1142,10 @@ h3 {
 
   .work-card__meta {
     text-align: left;
+  }
+
+  .lesson-upload-row {
+    grid-template-columns: 1fr;
   }
 
   .side-card,

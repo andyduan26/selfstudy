@@ -178,8 +178,17 @@ class TeacherWorkUploadSerializer(serializers.Serializer):
                 if not isinstance(chapter, dict):
                     raise serializers.ValidationError({'chapters': f'第 {index} 个章节格式不正确'})
                 if not chapter.get('title'):
-                    raise serializers.ValidationError({'chapters': f'第 {index} 个章节标题不能为空'})
-                if not chapter.get('videoTitle'):
+                    raise serializers.ValidationError({'chapters': f'第 {index} 个章标题不能为空'})
+                lessons = chapter.get('lessons')
+                if lessons is not None:
+                    if not isinstance(lessons, list) or not lessons:
+                        raise serializers.ValidationError({'chapters': f'第 {index} 章请至少添加一个节'})
+                    for lesson_index, lesson in enumerate(lessons, start=1):
+                        if not isinstance(lesson, dict):
+                            raise serializers.ValidationError({'chapters': f'第 {index} 章第 {lesson_index} 节格式不正确'})
+                        if not lesson.get('title'):
+                            raise serializers.ValidationError({'chapters': f'第 {index} 章第 {lesson_index} 节标题不能为空'})
+                elif not chapter.get('videoTitle'):
                     raise serializers.ValidationError({'chapters': f'第 {index} 个视频标题不能为空'})
             attrs['chapters_data'] = chapters
         return attrs

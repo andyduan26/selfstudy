@@ -63,11 +63,15 @@
         <el-upload :auto-upload="false" :limit="1" :on-change="handleCover" :on-remove="() => (workForm.cover = null)">
           <el-button>选择封面图片</el-button>
         </el-upload>
+        <div v-if="coverPreview" class="cover-preview">
+          <img :src="coverPreview" alt="课程封面预览" />
+          <span>封面预览</span>
+        </div>
       </el-form-item>
       <div class="chapter-upload-section">
         <div class="section-heading small">
-          <h2>课程章节</h2>
-          <el-button type="primary" plain @click="addChapter">添加章节</el-button>
+          <h2>课程内容</h2>
+          <el-button type="primary" plain @click="addChapter">添加章</el-button>
         </div>
         <article v-for="(chapter, index) in workForm.chapters" :key="chapter.uid" class="chapter-upload-card">
           <div class="chapter-upload-card__head">
@@ -81,19 +85,30 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item :label="`视频标题`" :prop="`chapters.${index}.videoTitle`" :rules="chapterVideoTitleRules">
-                <el-input v-model="chapter.videoTitle" placeholder="例如：试看导学" />
+              <el-form-item label="章设置">
+                <el-switch v-model="chapter.isFreePreview" active-text="整章允许试看" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-form-item label="章节简介">
             <el-input v-model="chapter.summary" placeholder="简要说明本章学习内容" />
           </el-form-item>
-          <div class="chapter-upload-card__foot">
-            <el-upload :auto-upload="false" :limit="1" :on-change="(file) => handleChapterVideo(index, file)" :on-remove="() => (chapter.videoFile = null)">
-              <el-button>选择本章视频</el-button>
-            </el-upload>
-            <el-switch v-model="chapter.isFreePreview" active-text="允许试看" />
+          <div class="lesson-upload-list">
+            <div class="section-heading small">
+              <h2>本章小节</h2>
+              <el-button plain @click="addLesson(index)">添加节</el-button>
+            </div>
+            <div v-for="(lesson, lessonIndex) in chapter.lessons" :key="lesson.uid" class="lesson-upload-row">
+              <span>第 {{ lessonIndex + 1 }} 节</span>
+              <el-form-item :prop="`chapters.${index}.lessons.${lessonIndex}.title`" :rules="lessonTitleRules">
+                <el-input v-model="lesson.title" placeholder="节标题，例如：软件介绍" />
+              </el-form-item>
+              <el-upload :auto-upload="false" :limit="1" :on-change="(file) => handleLessonVideo(index, lessonIndex, file)" :on-remove="() => (lesson.videoFile = null)">
+                <el-button>选择视频</el-button>
+              </el-upload>
+              <el-switch v-model="lesson.isFreePreview" active-text="试看" />
+              <el-button v-if="chapter.lessons.length > 1" text type="danger" @click="removeLesson(index, lessonIndex)">删除</el-button>
+            </div>
           </div>
         </article>
       </div>
@@ -152,6 +167,7 @@ const withdrawDialogVisible = ref(false)
 const withdrawFormRef = ref()
 const workFormRef = ref()
 const teacherWorksRef = ref()
+const coverPreview = ref('')
 
 const roleOptions = [
   { label: '普通用户', value: 'user' },
@@ -183,7 +199,7 @@ const workRules = {
   description: [{ required: true, min: 10, message: '请至少填写 10 个字说明', trigger: 'blur' }],
 }
 const chapterTitleRules = [{ required: true, message: '请输入章节标题', trigger: 'blur' }]
-const chapterVideoTitleRules = [{ required: true, message: '请输入视频标题', trigger: 'blur' }]
+const lessonTitleRules = [{ required: true, message: '请输入节标题', trigger: 'blur' }]
 
 const withdrawForm = reactive({
   amount: '',
@@ -259,6 +275,7 @@ function handleRoleChange(role) {
 
 function handleCover(file) {
   workForm.cover = file.raw
+  coverPreview.value = URL.createObjectURL(file.raw)
 }
 
 function handleAttachment(file) {
@@ -271,7 +288,15 @@ function createChapter() {
     uid,
     title: '',
     summary: '',
-    videoTitle: '',
+    isFreePreview: false,
+    lessons: [createLesson()],
+  }
+}
+
+function createLesson() {
+  return {
+    uid: Date.now() + Math.random(),
+    title: '',
     videoFile: null,
     isFreePreview: false,
   }
@@ -285,8 +310,16 @@ function removeChapter(index) {
   workForm.chapters.splice(index, 1)
 }
 
-function handleChapterVideo(index, file) {
-  workForm.chapters[index].videoFile = file.raw
+function addLesson(chapterIndex) {
+  workForm.chapters[chapterIndex].lessons.push(createLesson())
+}
+
+function removeLesson(chapterIndex, lessonIndex) {
+  workForm.chapters[chapterIndex].lessons.splice(lessonIndex, 1)
+}
+
+function handleLessonVideo(chapterIndex, lessonIndex, file) {
+  workForm.chapters[chapterIndex].lessons[lessonIndex].videoFile = file.raw
 }
 
 async function submitWork() {
@@ -301,12 +334,18 @@ async function submitWork() {
     formData.append('chapters', JSON.stringify(workForm.chapters.map((chapter, index) => ({
       title: chapter.title,
       summary: chapter.summary,
-      videoTitle: chapter.videoTitle,
       isFreePreview: chapter.isFreePreview,
       sortWeight: index + 1,
+      lessons: chapter.lessons.map((lesson, lessonIndex) => ({
+        title: lesson.title,
+        isFreePreview: lesson.isFreePreview,
+        sortWeight: lessonIndex + 1,
+      })),
     }))))
-    workForm.chapters.forEach((chapter, index) => {
-      if (chapter.videoFile) formData.append(`chapter_video_${index}`, chapter.videoFile)
+    workForm.chapters.forEach((chapter, chapterIndex) => {
+      chapter.lessons.forEach((lesson, lessonIndex) => {
+        if (lesson.videoFile) formData.append(`chapter_${chapterIndex}_lesson_${lessonIndex}_video`, lesson.videoFile)
+      })
     })
     if (workForm.attachmentFile) formData.append('attachment_file', workForm.attachmentFile)
     await uploadTeacherWorkApi(formData)

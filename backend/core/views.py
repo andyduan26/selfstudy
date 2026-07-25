@@ -167,6 +167,20 @@ class CourseViewSet(viewsets.ModelViewSet):
                     sort_weight=chapter_data.get('sortWeight') or index + 1,
                     is_free_preview=bool(chapter_data.get('isFreePreview')),
                 )
+                lessons = chapter_data.get('lessons') or []
+                if lessons:
+                    for lesson_index, lesson_data in enumerate(lessons):
+                        video_file = request.FILES.get(f'chapter_{index}_lesson_{lesson_index}_video')
+                        if video_file:
+                            Video.objects.create(
+                                chapter=chapter,
+                                title=lesson_data['title'],
+                                video_file=video_file,
+                                file_size=video_file.size,
+                                sort_weight=lesson_data.get('sortWeight') or lesson_index + 1,
+                                is_free_preview=bool(lesson_data.get('isFreePreview')),
+                            )
+                    continue
                 video_file = request.FILES.get(f'chapter_video_{index}')
                 if video_file:
                     Video.objects.create(

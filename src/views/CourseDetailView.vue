@@ -34,13 +34,16 @@
           <p>{{ course.summary }} 课程采用循序渐进的方式讲解，适合希望系统补齐基础并完成项目练习的学习者。</p>
         </el-tab-pane>
         <el-tab-pane label="课程目录">
-          <div v-for="lesson in lessons" :key="lesson.id" class="lesson-row">
-            <span>第 {{ lesson.index }} 讲</span>
-            <strong>{{ lesson.title }}</strong>
-            <el-tag v-if="lesson.isFreePreview" size="small" type="success" effect="plain">可试看</el-tag>
-            <el-button size="small" type="primary" plain @click="playLesson(lesson)">
-              {{ lesson.isFreePreview ? '播放' : '试看' }}
-            </el-button>
+          <div v-for="chapter in chapterGroups" :key="chapter.id" class="chapter-directory">
+            <h3>{{ chapter.index }}. {{ chapter.title }}</h3>
+            <div v-for="lesson in chapter.lessons" :key="lesson.id" class="lesson-row">
+              <span>第 {{ lesson.index }} 节</span>
+              <strong>{{ lesson.title }}</strong>
+              <el-tag v-if="lesson.isFreePreview" size="small" type="success" effect="plain">可试看</el-tag>
+              <el-button size="small" type="primary" plain @click="playLesson(lesson)">
+                {{ lesson.isFreePreview ? '播放' : '试看' }}
+              </el-button>
+            </div>
           </div>
         </el-tab-pane>
         <el-tab-pane label="适合人群">
@@ -83,16 +86,21 @@ const loading = ref(false)
 const rawCourse = ref(null)
 const course = computed(() => (rawCourse.value ? mapCourse(rawCourse.value) : null))
 const teacher = computed(() => rawCourse.value?.teacher_detail || null)
-const lessons = computed(() => {
+const chapterGroups = computed(() => {
   const chapters = rawCourse.value?.chapters || []
   if (!chapters.length) {
-    return [{ id: 'default', index: 1, title: '课程试看：学习路线介绍', isFreePreview: true }]
+    return [{ id: 'default', index: 1, title: '默认章节', lessons: [{ id: 'default-lesson', index: 1, title: '课程试看：学习路线介绍', isFreePreview: true }] }]
   }
-  return chapters.map((chapter, index) => ({
+  return chapters.map((chapter, chapterIndex) => ({
     id: chapter.id,
-    index: index + 1,
-    title: chapter.title || `第 ${index + 1} 讲`,
-    isFreePreview: chapter.is_free_preview || index === 0,
+    index: chapterIndex + 1,
+    title: chapter.title || `第 ${chapterIndex + 1} 章`,
+    lessons: (chapter.videos || []).map((video, lessonIndex) => ({
+      id: video.id,
+      index: lessonIndex + 1,
+      title: video.title || `第 ${lessonIndex + 1} 节`,
+      isFreePreview: video.is_free_preview || chapter.is_free_preview || (chapterIndex === 0 && lessonIndex === 0),
+    })),
   }))
 })
 
@@ -121,7 +129,7 @@ function handlePreview() {
 
 function playLesson(lesson) {
   if (!lesson.isFreePreview) {
-    ElMessageBox.alert('该章节暂未开放试看，购买后可观看完整内容。', '播放提示', {
+    ElMessageBox.alert('该节暂未开放试看，购买后可观看完整内容。', '播放提示', {
       confirmButtonText: '知道了',
     })
     return
