@@ -35,6 +35,13 @@ POST /api/auth/token/refresh/
 POST /api/users/register/
 ```
 
+个人资料：
+
+```http
+GET /api/users/me/
+PATCH /api/users/me/
+```
+
 核心资源：
 
 ```text

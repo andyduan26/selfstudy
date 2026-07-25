@@ -5,7 +5,7 @@
         <p class="section-kicker">Personal Center</p>
         <h1>{{ isTeacher ? '讲师工作台' : '个人中心' }}</h1>
         <p class="section-desc">
-          {{ isTeacher ? '管理课程、查看数据、处理收益与提现。' : '当前身份为普通用户，可提交讲师入驻申请。' }}
+          {{ userSummary }}
         </p>
       </div>
       <div class="identity-switch">
@@ -29,6 +29,7 @@
       </aside>
 
       <main class="center-content">
+        <ProfilePanel v-if="activeMenu === 'profile'" :user="profileUser" @updated="profileUser = $event" />
         <TeacherApplyPanel v-if="activeMenu === 'apply'" />
         <TeacherDashboardPanel v-if="activeMenu === 'dashboard'" />
         <TeacherWorksPanel v-if="activeMenu === 'works'" @create="workDialogVisible = true" />
@@ -78,9 +79,12 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { DataAnalysis, Document, Money, Promotion, Wallet } from '@element-plus/icons-vue'
+import { DataAnalysis, Document, Money, Promotion, User, Wallet } from '@element-plus/icons-vue'
+import { getCurrentUserApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
+import ProfilePanel from './ProfilePanel.vue'
 import TeacherApplyPanel from './TeacherApplyPanel.vue'
 import TeacherDashboardPanel from './TeacherDashboardPanel.vue'
 import TeacherWorksPanel from './TeacherWorksPanel.vue'
@@ -89,7 +93,8 @@ import WithdrawPanel from './WithdrawPanel.vue'
 
 const authStore = useAuthStore()
 const currentRole = ref(authStore.role)
-const activeMenu = ref(authStore.role === 'teacher' ? 'dashboard' : 'apply')
+const activeMenu = ref('profile')
+const profileUser = ref(authStore.user)
 const workDialogVisible = ref(false)
 const withdrawDialogVisible = ref(false)
 const withdrawFormRef = ref()
@@ -100,6 +105,7 @@ const roleOptions = [
 ]
 
 const allMenus = [
+  { key: 'profile', label: '个人资料', role: 'all', icon: User },
   { key: 'apply', label: '讲师入驻申请', role: 'user', icon: Promotion },
   { key: 'dashboard', label: '数据看板', role: 'teacher', icon: DataAnalysis },
   { key: 'works', label: '作品管理', role: 'teacher', icon: Document },
@@ -132,13 +138,31 @@ const withdrawRules = {
 }
 
 const isTeacher = computed(() => authStore.role === 'teacher')
-const visibleMenus = computed(() => allMenus.filter((item) => item.role === authStore.role))
+const visibleMenus = computed(() => allMenus.filter((item) => item.role === 'all' || item.role === authStore.role))
+const userSummary = computed(() => {
+  const user = profileUser.value
+  if (!user) return '正在读取你的账号资料。'
+  const name = user.nickname || user.username
+  return `${name}，账号 ${user.username}，注册时间 ${new Date(user.date_joined).toLocaleDateString('zh-CN')}`
+})
+
+onMounted(async () => {
+  try {
+    const user = await getCurrentUserApi()
+    profileUser.value = user
+    authStore.updateUser(user)
+  } catch {
+    // Request interceptor already shows errors.
+  }
+})
 
 watch(
   () => authStore.role,
   (role) => {
     currentRole.value = role
-    activeMenu.value = role === 'teacher' ? 'dashboard' : 'apply'
+    if (!visibleMenus.value.some((item) => item.key === activeMenu.value)) {
+      activeMenu.value = 'profile'
+    }
   },
 )
 

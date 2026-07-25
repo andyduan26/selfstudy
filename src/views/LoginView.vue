@@ -35,6 +35,9 @@
               <el-form-item label="邮箱" prop="email">
                 <el-input v-model="registerForm.email" placeholder="请输入邮箱" />
               </el-form-item>
+              <el-form-item label="手机号" prop="phone">
+                <el-input v-model="registerForm.phone" placeholder="请输入 11 位手机号" maxlength="11" />
+              </el-form-item>
               <el-form-item label="密码" prop="password">
                 <el-input v-model="registerForm.password" type="password" placeholder="至少 8 位，建议包含字母和数字" show-password />
               </el-form-item>
@@ -76,6 +79,7 @@ const loginForm = reactive({
 const registerForm = reactive({
   nickname: '',
   email: '',
+  phone: '',
   password: '',
 })
 
@@ -90,7 +94,11 @@ const registerRules = {
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
   ],
-  password: [{ required: true, min: 6, message: '请输入至少 6 位密码', trigger: 'blur' }],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的中国大陆手机号', trigger: 'blur' },
+  ],
+  password: [{ required: true, min: 8, message: '请输入至少 8 位密码', trigger: 'blur' }],
 }
 
 async function handleLogin() {
@@ -101,6 +109,7 @@ async function handleLogin() {
       message: '登录成功',
       accessToken: data.access,
       userRole: data.user?.role || selectedRole.value,
+      userInfo: data.user,
     })
   } catch {
     // Element Plus has already rendered field-level validation messages.
@@ -118,16 +127,18 @@ async function handleRegister() {
       message: '注册成功',
       accessToken: data.access,
       userRole: data.user?.role || selectedRole.value,
+      userInfo: data.user,
     })
   } catch {
     // Element Plus has already rendered field-level validation messages.
   }
 }
 
-function signIn({ message, accessToken, userRole }) {
+function signIn({ message, accessToken, userRole, userInfo }) {
   authStore.login({
     accessToken,
     userRole,
+    userInfo,
   })
   ElMessage.success(message)
   router.push(route.query.redirect || '/')

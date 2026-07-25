@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -21,7 +23,26 @@ from .models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'nickname', 'email', 'phone', 'role', 'avatar', 'avatar_url', 'bio', 'is_verified_teacher')
+        fields = ('id', 'username', 'nickname', 'email', 'phone', 'role', 'avatar', 'avatar_url', 'bio', 'is_verified_teacher', 'date_joined')
+        read_only_fields = ('id', 'username', 'role', 'is_verified_teacher', 'date_joined')
+
+    def validate_email(self, value):
+        queryset = User.objects.filter(email=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if value and queryset.exists():
+            raise serializers.ValidationError('该邮箱已被使用')
+        return value
+
+    def validate_phone(self, value):
+        if value and not re.fullmatch(r'1[3-9]\d{9}', value):
+            raise serializers.ValidationError('请输入正确的中国大陆手机号')
+        queryset = User.objects.filter(phone=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if value and queryset.exists():
+            raise serializers.ValidationError('该手机号已被使用')
+        return value
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -29,17 +50,25 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'username', 'nickname', 'email', 'password', 'role')
+        fields = ('id', 'username', 'nickname', 'email', 'phone', 'password', 'role')
         extra_kwargs = {
             'username': {'required': False},
             'email': {'required': True},
             'nickname': {'required': True},
+            'phone': {'required': True},
             'role': {'required': False},
         }
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError('该邮箱已注册')
+        return value
+
+    def validate_phone(self, value):
+        if not re.fullmatch(r'1[3-9]\d{9}', value):
+            raise serializers.ValidationError('请输入正确的中国大陆手机号')
+        if User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError('该手机号已注册')
         return value
 
     def create(self, validated_data):
@@ -54,6 +83,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
+        identifier = attrs.get(self.username_field)
+        if identifier:
+            user = (
+                User.objects.filter(username=identifier).first()
+                or User.objects.filter(email=identifier).first()
+                or User.objects.filter(phone=identifier).first()
+            )
+            if user:
+                attrs[self.username_field] = user.username
         data = super().validate(attrs)
         data['user'] = UserSerializer(self.user, context=self.context).data
         return data

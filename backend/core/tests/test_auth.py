@@ -10,6 +10,7 @@ class AuthApiTests(APITestCase):
         response = self.client.post('/api/users/register/', {
             'email': 'student@example.com',
             'nickname': '学习者',
+            'phone': '13800138000',
             'password': 'StrongPass12345',
             'role': User.Role.USER,
         }, format='json')
@@ -23,6 +24,7 @@ class AuthApiTests(APITestCase):
         User.objects.create_user(
             username='teacher@example.com',
             email='teacher@example.com',
+            phone='13900139000',
             password='StrongPass12345',
             nickname='讲师',
             role=User.Role.TEACHER,
@@ -36,3 +38,21 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['user']['role'], User.Role.TEACHER)
         self.assertIn('access', response.data)
+
+    def test_user_can_update_own_profile(self):
+        register_response = self.client.post('/api/users/register/', {
+            'email': 'profile@example.com',
+            'nickname': '旧昵称',
+            'phone': '13700137000',
+            'password': 'StrongPass12345',
+            'role': User.Role.USER,
+        }, format='json')
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {register_response.data['access']}")
+
+        response = self.client.patch('/api/users/me/', {
+            'nickname': '新昵称',
+            'bio': '正在学习 Vue 和 Django',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['nickname'], '新昵称')
