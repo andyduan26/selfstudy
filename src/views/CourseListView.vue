@@ -13,7 +13,7 @@
       <el-form :inline="true">
         <el-form-item label="分类">
           <el-select v-model="filters.category" placeholder="全部分类" clearable>
-            <el-option v-for="item in categories" :key="item.id" :label="item.name" :value="item.id" />
+            <el-option v-for="item in categoryOptions" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="难度">
@@ -36,7 +36,16 @@
       </el-form>
     </div>
 
-    <div class="course-grid course-grid--list">
+    <el-alert
+      v-if="loadError"
+      class="roomy"
+      title="课程数据加载失败，请确认 Django 后端已启动。"
+      type="error"
+      show-icon
+      :closable="false"
+    />
+
+    <div v-loading="loading" class="course-grid course-grid--list">
       <article v-for="course in pagedCourses" :key="course.id" class="course-card" @click="router.push(`/courses/${course.id}`)">
         <div class="course-cover">{{ course.cover }}</div>
         <div class="course-card__body">
@@ -55,7 +64,7 @@
       </article>
     </div>
 
-    <el-empty v-if="filteredCourses.length === 0" description="没有找到匹配课程" />
+    <el-empty v-if="!loading && filteredCourses.length === 0" description="暂无已审核通过的课程" />
 
     <div class="pagination-bar">
       <el-pagination layout="prev, pager, next" :total="filteredCourses.length" :page-size="pageSize" v-model:current-page="currentPage" />
@@ -72,15 +81,19 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { categories, courses } from '@/data/platform'
+import { getCoursesApi } from '@/api/course'
+import { categories } from '@/data/platform'
 
 const route = useRoute()
 const router = useRouter()
 const pageSize = 4
 const currentPage = ref(1)
 const previewVisible = ref(false)
+const loading = ref(false)
+const loadError = ref(false)
+const backendCourses = ref([])
 const filters = reactive({
   category: '',
   level: '',
@@ -92,7 +105,36 @@ watchEffect(() => {
   filters.free = route.query.free === '1' ? '1' : ''
 })
 
-const filteredCourses = computed(() => courses.filter((course) => {
+onMounted(loadCourses)
+
+const courses = computed(() => backendCourses.value.map((course) => ({
+  id: course.id,
+  title: course.title,
+  category: course.category_detail?.slug || course.category_detail?.name || course.category,
+  categoryText: course.category_detail?.name || '综合课程',
+  teacher: course.teacher_detail?.real_name || '平台讲师',
+  level: levelLabel(course.level),
+  price: Number(course.price) > 0 ? `¥${Number(course.price).toFixed(0)}` : '免费',
+  lessons: course.chapters?.length || 1,
+  students: course.sales_count || 0,
+  summary: course.description || course.subtitle || '课程已通过平台审核，更多介绍请进入详情页查看。',
+  cover: (course.title || '课程').slice(0, 3).toUpperCase(),
+  isFree: Number(course.price) <= 0 || course.is_free,
+})))
+
+const categoryOptions = computed(() => {
+  const options = categories.map((item) => ({ id: item.id, name: item.name }))
+  backendCourses.value.forEach((course) => {
+    const id = course.category_detail?.slug || course.category_detail?.name || course.category
+    const name = course.category_detail?.name || '综合课程'
+    if (id && !options.some((item) => item.id === id)) {
+      options.push({ id, name })
+    }
+  })
+  return options
+})
+
+const filteredCourses = computed(() => courses.value.filter((course) => {
   const matchesCategory = !filters.category || course.category === filters.category
   const matchesLevel = !filters.level || course.level === filters.level
   const matchesFree = filters.free === '' || String(Number(course.isFree)) === filters.free
@@ -106,11 +148,33 @@ const pagedCourses = computed(() => {
 })
 
 function categoryName(id) {
-  return categories.find((item) => item.id === id)?.name || '综合课程'
+  return categories.find((item) => item.id === id)?.name || courses.value.find((item) => item.category === id)?.categoryText || '综合课程'
 }
 
 function goFreeCourses() {
   previewVisible.value = false
   router.push('/courses?free=1')
+}
+
+async function loadCourses() {
+  loading.value = true
+  loadError.value = false
+  try {
+    backendCourses.value = await getCoursesApi()
+  } catch {
+    backendCourses.value = []
+    loadError.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+function levelLabel(level) {
+  const labels = {
+    beginner: '入门',
+    intermediate: '进阶',
+    advanced: '实战',
+  }
+  return labels[level] || level || '入门'
 }
 </script>

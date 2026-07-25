@@ -3,7 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Course, CourseAttachment, TeacherApplication, TeacherProfile, User, Video
+from core.models import Course, CourseAttachment, CourseCategory, TeacherApplication, TeacherProfile, User, Video
 
 
 class AuthApiTests(APITestCase):
@@ -120,3 +120,59 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(course.status, Course.Status.PENDING)
         self.assertTrue(Video.objects.filter(chapter__course=course).exists())
         self.assertTrue(CourseAttachment.objects.filter(course=course).exists())
+
+    def test_verified_teacher_can_list_own_uploaded_works(self):
+        user = User.objects.create_user(
+            username='teacher-works@example.com',
+            email='teacher-works@example.com',
+            phone='13800138003',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        teacher = TeacherProfile.objects.create(user=user, real_name='作品老师', direction='前端开发')
+        category = CourseCategory.objects.create(name='前端开发', slug='frontend')
+        Course.objects.create(
+            teacher=teacher,
+            category=category,
+            title='我的待审核课程',
+            description='课程说明',
+            price='99.00',
+            status=Course.Status.PENDING,
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get('/api/courses/my-works/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['title'], '我的待审核课程')
+        self.assertEqual(response.data[0]['status'], Course.Status.PENDING)
+
+    def test_public_course_list_only_shows_approved_or_published_courses(self):
+        user = User.objects.create_user(
+            username='teacher-public@example.com',
+            email='teacher-public@example.com',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        teacher = TeacherProfile.objects.create(user=user, real_name='公开老师', direction='前端开发')
+        category = CourseCategory.objects.create(name='前端开发', slug='frontend')
+        Course.objects.create(
+            teacher=teacher,
+            category=category,
+            title='待审核课程',
+            status=Course.Status.PENDING,
+        )
+        Course.objects.create(
+            teacher=teacher,
+            category=category,
+            title='已通过课程',
+            status=Course.Status.APPROVED,
+        )
+
+        response = self.client.get('/api/courses/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titles = [item['title'] for item in response.data['results']]
+        self.assertEqual(titles, ['已通过课程'])

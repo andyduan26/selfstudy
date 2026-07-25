@@ -11,3 +11,7 @@ export function uploadTeacherWorkApi(formData) {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export function getTeacherWorksApi() {
+  return request.get('/api/courses/my-works/')
+}

@@ -1,5 +1,9 @@
 <template>
-  <section v-if="course" class="page-section detail-layout">
+  <section v-if="loading" class="page-section">
+    <el-skeleton :rows="8" animated />
+  </section>
+
+  <section v-else-if="course" class="page-section detail-layout">
     <div>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
@@ -62,21 +66,34 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { categories, courses, teachers } from '@/data/platform'
+import { getCourseApi } from '@/api/course'
+import { categories } from '@/data/platform'
 import NotFoundView from './NotFoundView.vue'
 
 const route = useRoute()
 const router = useRouter()
 const dialogVisible = ref(false)
-const course = computed(() => courses.find((item) => item.id === Number(route.params.id)))
-const teacher = computed(() => teachers.find((item) => item.id === course.value?.teacherId))
-const lessons = [1, 2, 3, 4, 5, 6]
+const loading = ref(false)
+const rawCourse = ref(null)
+const course = computed(() => (rawCourse.value ? mapCourse(rawCourse.value) : null))
+const teacher = computed(() => rawCourse.value?.teacher_detail || null)
+const lessons = computed(() => {
+  const count = rawCourse.value?.chapters?.length || 1
+  return Array.from({ length: Math.max(count, 1) }, (_item, index) => index + 1)
+})
+
+onMounted(loadCourse)
+
+watch(
+  () => route.params.id,
+  () => loadCourse(),
+)
 
 function categoryName(id) {
-  return categories.find((item) => item.id === id)?.name || '综合课程'
+  return categories.find((item) => item.id === id)?.name || course.value?.categoryText || '综合课程'
 }
 
 function handlePreview() {
@@ -89,5 +106,46 @@ function handlePreview() {
     confirmButtonText: '进入试看',
     callback: () => router.push(`/courses/${course.value.id}/play`),
   })
+}
+
+async function loadCourse() {
+  loading.value = true
+  rawCourse.value = null
+  try {
+    rawCourse.value = await getCourseApi(route.params.id)
+  } catch {
+    rawCourse.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+function mapCourse(item) {
+  const price = Number(item.price || 0)
+  return {
+    id: item.id,
+    title: item.title,
+    category: item.category_detail?.slug || item.category_detail?.name || item.category,
+    categoryText: item.category_detail?.name || '综合课程',
+    teacher: item.teacher_detail?.real_name || '平台讲师',
+    level: levelLabel(item.level),
+    duration: `${item.chapters?.length || 1} 节`,
+    lessons: item.chapters?.length || 1,
+    students: item.sales_count || 0,
+    rating: Number(item.rating || 0).toFixed(1),
+    summary: item.description || item.subtitle || '课程已通过平台审核，更多内容请参考课程目录。',
+    cover: (item.title || '课程').slice(0, 3).toUpperCase(),
+    price: price > 0 ? `¥${price.toFixed(0)}` : '免费',
+    isFree: price <= 0 || item.is_free,
+  }
+}
+
+function levelLabel(level) {
+  const labels = {
+    beginner: '入门',
+    intermediate: '进阶',
+    advanced: '实战',
+  }
+  return labels[level] || level || '入门'
 }
 </script>

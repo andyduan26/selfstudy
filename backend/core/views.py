@@ -105,6 +105,20 @@ class CourseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action in ('list', 'retrieve') and not self.request.user.is_staff:
+            return queryset.filter(status__in=[Course.Status.APPROVED, Course.Status.PUBLISHED])
+        return queryset
+
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='my-works')
+    def my_works(self, request):
+        queryset = Course.objects.select_related('teacher', 'category').prefetch_related('chapters__videos').filter(
+            teacher__user=request.user,
+        ).order_by('-updated_at')
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='upload-work')
     def upload_work(self, request):
         serializer = TeacherWorkUploadSerializer(data=request.data, context={'request': request})

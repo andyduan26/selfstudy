@@ -32,7 +32,7 @@
         <ProfilePanel v-if="activeMenu === 'profile'" :user="profileUser" @updated="profileUser = $event" />
         <TeacherApplyPanel v-if="activeMenu === 'apply'" />
         <TeacherDashboardPanel v-if="activeMenu === 'dashboard'" />
-        <TeacherWorksPanel v-if="activeMenu === 'works'" @create="workDialogVisible = true" />
+        <TeacherWorksPanel v-if="activeMenu === 'works'" ref="teacherWorksRef" @create="workDialogVisible = true" />
         <IncomePanel v-if="activeMenu === 'income'" />
         <WithdrawPanel v-if="activeMenu === 'withdraw'" @withdraw="withdrawDialogVisible = true" />
       </main>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DataAnalysis, Document, Money, Promotion, User, Wallet } from '@element-plus/icons-vue'
@@ -117,6 +117,7 @@ const workDialogVisible = ref(false)
 const withdrawDialogVisible = ref(false)
 const withdrawFormRef = ref()
 const workFormRef = ref()
+const teacherWorksRef = ref()
 
 const roleOptions = [
   { label: '普通用户', value: 'user' },
@@ -245,6 +246,9 @@ async function submitWork() {
     if (workForm.attachmentFile) formData.append('attachment_file', workForm.attachmentFile)
     await uploadTeacherWorkApi(formData)
     workDialogVisible.value = false
+    activeMenu.value = 'works'
+    await nextTick()
+    await teacherWorksRef.value?.loadWorks?.()
     ElMessage.success('作品已上传，等待后台审核')
   } catch {
     // Element Plus and Axios already show errors.
