@@ -289,6 +289,7 @@ h3 {
 .work-card,
 .review-card,
 .todo-card,
+.chapter-upload-card,
 .lesson-sidebar,
 .preview-banner,
 .login-panel {
@@ -383,7 +384,8 @@ h3 {
 .center-panel:hover,
 .work-card:hover,
 .review-card:hover,
-.todo-card:hover {
+.todo-card:hover,
+.chapter-upload-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
 }
@@ -939,6 +941,36 @@ h3 {
   font-size: 24px;
 }
 
+.chapter-upload-section {
+  margin: 28px 0;
+}
+
+.chapter-upload-card {
+  margin-bottom: 16px;
+  padding: 20px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.chapter-upload-card__head,
+.chapter-upload-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chapter-upload-card__head {
+  margin-bottom: 16px;
+}
+
+.chapter-upload-card__head strong {
+  font-size: 18px;
+}
+
+.chapter-upload-card__foot {
+  padding-top: 4px;
+}
+
 .income-summary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1065,7 +1097,8 @@ h3 {
   .section-heading,
   .center-header,
   .panel-heading,
-  .withdraw-card {
+  .withdraw-card,
+  .chapter-upload-card__foot {
     align-items: flex-start;
     flex-direction: column;
   }

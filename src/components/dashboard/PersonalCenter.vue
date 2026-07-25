@@ -39,14 +39,20 @@
     </div>
   </section>
 
-  <el-dialog v-model="workDialogVisible" title="上传课程作品" width="620px">
+  <el-dialog v-model="workDialogVisible" title="上传课程作品" width="760px">
     <el-form ref="workFormRef" :model="workForm" :rules="workRules" label-position="top">
-      <el-form-item label="课程名称" prop="title">
-        <el-input v-model="workForm.title" placeholder="请输入课程名称" />
-      </el-form-item>
-      <el-form-item label="课程分类" prop="categoryName">
-        <el-input v-model="workForm.categoryName" placeholder="例如：前端开发、后端开发、AI 工具" />
-      </el-form-item>
+      <el-row :gutter="18">
+        <el-col :span="12">
+          <el-form-item label="课程名称" prop="title">
+            <el-input v-model="workForm.title" placeholder="请输入课程名称" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="课程分类" prop="categoryName">
+            <el-input v-model="workForm.categoryName" placeholder="例如：前端开发、后端开发、AI 工具" />
+          </el-form-item>
+        </el-col>
+      </el-row>
       <el-form-item label="课程说明" prop="description">
         <el-input v-model="workForm.description" type="textarea" :rows="4" placeholder="请填写课程介绍、适合人群和学习目标" />
       </el-form-item>
@@ -58,11 +64,39 @@
           <el-button>选择封面图片</el-button>
         </el-upload>
       </el-form-item>
-      <el-form-item label="课程视频（支持大文件，多格式）">
-        <el-upload :auto-upload="false" :limit="1" :on-change="handleWorkVideo" :on-remove="() => (workForm.videoFile = null)">
-          <el-button>选择视频文件</el-button>
-        </el-upload>
-      </el-form-item>
+      <div class="chapter-upload-section">
+        <div class="section-heading small">
+          <h2>课程章节</h2>
+          <el-button type="primary" plain @click="addChapter">添加章节</el-button>
+        </div>
+        <article v-for="(chapter, index) in workForm.chapters" :key="chapter.uid" class="chapter-upload-card">
+          <div class="chapter-upload-card__head">
+            <strong>第 {{ index + 1 }} 章</strong>
+            <el-button v-if="workForm.chapters.length > 1" text type="danger" @click="removeChapter(index)">删除</el-button>
+          </div>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item :label="`章节标题`" :prop="`chapters.${index}.title`" :rules="chapterTitleRules">
+                <el-input v-model="chapter.title" placeholder="例如：课程介绍与学习路径" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item :label="`视频标题`" :prop="`chapters.${index}.videoTitle`" :rules="chapterVideoTitleRules">
+                <el-input v-model="chapter.videoTitle" placeholder="例如：试看导学" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="章节简介">
+            <el-input v-model="chapter.summary" placeholder="简要说明本章学习内容" />
+          </el-form-item>
+          <div class="chapter-upload-card__foot">
+            <el-upload :auto-upload="false" :limit="1" :on-change="(file) => handleChapterVideo(index, file)" :on-remove="() => (chapter.videoFile = null)">
+              <el-button>选择本章视频</el-button>
+            </el-upload>
+            <el-switch v-model="chapter.isFreePreview" active-text="允许试看" />
+          </div>
+        </article>
+      </div>
       <el-form-item label="课程附件（文档/图片/音频/压缩包等）">
         <el-upload :auto-upload="false" :limit="1" :on-change="handleAttachment" :on-remove="() => (workForm.attachmentFile = null)">
           <el-button>选择附件</el-button>
@@ -71,7 +105,7 @@
     </el-form>
     <template #footer>
       <el-button @click="workDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="submitWork">保存草稿</el-button>
+      <el-button type="primary" @click="submitWork">提交审核</el-button>
     </template>
   </el-dialog>
 
@@ -139,8 +173,8 @@ const workForm = reactive({
   description: '',
   price: 0,
   cover: null,
-  videoFile: null,
   attachmentFile: null,
+  chapters: [createChapter()],
 })
 
 const workRules = {
@@ -148,6 +182,8 @@ const workRules = {
   categoryName: [{ required: true, message: '请输入课程分类', trigger: 'blur' }],
   description: [{ required: true, min: 10, message: '请至少填写 10 个字说明', trigger: 'blur' }],
 }
+const chapterTitleRules = [{ required: true, message: '请输入章节标题', trigger: 'blur' }]
+const chapterVideoTitleRules = [{ required: true, message: '请输入视频标题', trigger: 'blur' }]
 
 const withdrawForm = reactive({
   amount: '',
@@ -225,12 +261,32 @@ function handleCover(file) {
   workForm.cover = file.raw
 }
 
-function handleWorkVideo(file) {
-  workForm.videoFile = file.raw
-}
-
 function handleAttachment(file) {
   workForm.attachmentFile = file.raw
+}
+
+function createChapter() {
+  const uid = Date.now() + Math.random()
+  return {
+    uid,
+    title: '',
+    summary: '',
+    videoTitle: '',
+    videoFile: null,
+    isFreePreview: false,
+  }
+}
+
+function addChapter() {
+  workForm.chapters.push(createChapter())
+}
+
+function removeChapter(index) {
+  workForm.chapters.splice(index, 1)
+}
+
+function handleChapterVideo(index, file) {
+  workForm.chapters[index].videoFile = file.raw
 }
 
 async function submitWork() {
@@ -242,7 +298,16 @@ async function submitWork() {
     formData.append('description', workForm.description)
     formData.append('price', workForm.price)
     if (workForm.cover) formData.append('cover', workForm.cover)
-    if (workForm.videoFile) formData.append('video_file', workForm.videoFile)
+    formData.append('chapters', JSON.stringify(workForm.chapters.map((chapter, index) => ({
+      title: chapter.title,
+      summary: chapter.summary,
+      videoTitle: chapter.videoTitle,
+      isFreePreview: chapter.isFreePreview,
+      sortWeight: index + 1,
+    }))))
+    workForm.chapters.forEach((chapter, index) => {
+      if (chapter.videoFile) formData.append(`chapter_video_${index}`, chapter.videoFile)
+    })
     if (workForm.attachmentFile) formData.append('attachment_file', workForm.attachmentFile)
     await uploadTeacherWorkApi(formData)
     workDialogVisible.value = false

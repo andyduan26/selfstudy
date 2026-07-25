@@ -137,16 +137,37 @@ class CourseViewSet(viewsets.ModelViewSet):
             cover=data.get('cover'),
             status=Course.Status.PENDING,
         )
-        chapter = Chapter.objects.create(course=course, title='默认章节', sort_weight=1, is_free_preview=True)
-        video_file = data.get('video_file')
-        if video_file:
-            Video.objects.create(
-                chapter=chapter,
-                title=f'{course.title} - 主视频',
-                video_file=video_file,
-                file_size=video_file.size,
-                is_free_preview=True,
-            )
+        chapters_data = data.get('chapters_data') or []
+        if chapters_data:
+            for index, chapter_data in enumerate(chapters_data):
+                chapter = Chapter.objects.create(
+                    course=course,
+                    title=chapter_data['title'],
+                    summary=chapter_data.get('summary', ''),
+                    sort_weight=chapter_data.get('sortWeight') or index + 1,
+                    is_free_preview=bool(chapter_data.get('isFreePreview')),
+                )
+                video_file = request.FILES.get(f'chapter_video_{index}')
+                if video_file:
+                    Video.objects.create(
+                        chapter=chapter,
+                        title=chapter_data['videoTitle'],
+                        video_file=video_file,
+                        file_size=video_file.size,
+                        sort_weight=chapter.sort_weight,
+                        is_free_preview=bool(chapter_data.get('isFreePreview')),
+                    )
+        else:
+            chapter = Chapter.objects.create(course=course, title='默认章节', sort_weight=1, is_free_preview=True)
+            video_file = data.get('video_file')
+            if video_file:
+                Video.objects.create(
+                    chapter=chapter,
+                    title=f'{course.title} - 主视频',
+                    video_file=video_file,
+                    file_size=video_file.size,
+                    is_free_preview=True,
+                )
         attachment_file = data.get('attachment_file')
         if attachment_file:
             CourseAttachment.objects.create(

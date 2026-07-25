@@ -1,3 +1,5 @@
+import json
+
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
@@ -120,6 +122,39 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(course.status, Course.Status.PENDING)
         self.assertTrue(Video.objects.filter(chapter__course=course).exists())
         self.assertTrue(CourseAttachment.objects.filter(course=course).exists())
+
+    def test_verified_teacher_can_upload_work_with_multiple_chapters(self):
+        user = User.objects.create_user(
+            username='teacher-chapters@example.com',
+            email='teacher-chapters@example.com',
+            phone='13800138004',
+            password='StrongPass12345',
+            role=User.Role.TEACHER,
+            is_verified_teacher=True,
+        )
+        TeacherProfile.objects.create(user=user, real_name='章节老师', direction='前端开发')
+        self.client.force_authenticate(user=user)
+
+        response = self.client.post('/api/courses/upload-work/', {
+            'title': '多章节上传课程',
+            'category_name': '前端开发',
+            'description': '这是一门包含多个章节视频的课程。',
+            'price': '199.00',
+            'chapters': json.dumps([
+                {'title': '第一章 课程介绍', 'summary': '认识课程结构', 'videoTitle': '试看导学', 'isFreePreview': True, 'sortWeight': 1},
+                {'title': '第二章 实战演示', 'summary': '完成项目案例', 'videoTitle': '核心实战', 'isFreePreview': False, 'sortWeight': 2},
+            ]),
+            'chapter_video_0': SimpleUploadedFile('intro.mp4', b'intro-video', content_type='video/mp4'),
+            'chapter_video_1': SimpleUploadedFile('project.mp4', b'project-video', content_type='video/mp4'),
+        }, format='multipart')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        course = Course.objects.get(title='多章节上传课程')
+        self.assertEqual(course.chapters.count(), 2)
+        self.assertEqual(Video.objects.filter(chapter__course=course).count(), 2)
+        first_chapter = course.chapters.order_by('sort_weight').first()
+        self.assertEqual(first_chapter.title, '第一章 课程介绍')
+        self.assertTrue(first_chapter.is_free_preview)
 
     def test_verified_teacher_can_list_own_uploaded_works(self):
         user = User.objects.create_user(

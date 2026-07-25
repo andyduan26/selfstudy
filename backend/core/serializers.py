@@ -1,3 +1,4 @@
+import json
 import re
 
 from django.contrib.auth.password_validation import validate_password
@@ -159,11 +160,28 @@ class TeacherWorkUploadSerializer(serializers.Serializer):
     cover = serializers.ImageField(required=False)
     video_file = serializers.FileField(required=False)
     attachment_file = serializers.FileField(required=False)
+    chapters = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
         user = self.context['request'].user
         if not getattr(user, 'is_verified_teacher', False) or not hasattr(user, 'teacher_profile'):
             raise serializers.ValidationError('只有认证讲师可以上传作品')
+        raw_chapters = attrs.get('chapters')
+        if raw_chapters:
+            try:
+                chapters = json.loads(raw_chapters)
+            except json.JSONDecodeError as exc:
+                raise serializers.ValidationError({'chapters': '章节数据格式不正确'}) from exc
+            if not isinstance(chapters, list) or not chapters:
+                raise serializers.ValidationError({'chapters': '请至少添加一个课程章节'})
+            for index, chapter in enumerate(chapters, start=1):
+                if not isinstance(chapter, dict):
+                    raise serializers.ValidationError({'chapters': f'第 {index} 个章节格式不正确'})
+                if not chapter.get('title'):
+                    raise serializers.ValidationError({'chapters': f'第 {index} 个章节标题不能为空'})
+                if not chapter.get('videoTitle'):
+                    raise serializers.ValidationError({'chapters': f'第 {index} 个视频标题不能为空'})
+            attrs['chapters_data'] = chapters
         return attrs
 
 
