@@ -72,10 +72,10 @@
             :rows="4"
             maxlength="300"
             show-word-limit
-            placeholder="写下你的学习感受，提交后将进入后台审核"
+            placeholder="写下你的学习感受，提交后会立即展示"
           />
           <div class="comment-actions">
-            <span>评论审核通过后会展示在课程页。</span>
+            <span>评论提交后会立即展示在课程页。</span>
             <el-button type="primary" :loading="commentSubmitting" @click="submitComment">提交评论</el-button>
           </div>
         </div>
@@ -127,7 +127,7 @@
         <el-radio-button label="alipay">支付宝</el-radio-button>
         <el-radio-button label="wechat">微信</el-radio-button>
       </el-radio-group>
-      <p>当前为开发阶段模拟支付，确认后会在后端生成已支付订单和讲师收益记录。</p>
+      <p>当前接入支付宝沙箱。确认后会打开支付宝沙箱收银台，支付成功后由支付宝异步通知后端完成订单和收益结算。</p>
     </div>
     <template #footer>
       <el-button @click="payDialogVisible = false">取消</el-button>
@@ -241,12 +241,17 @@ function openPayDialog() {
 async function submitPayment() {
   paying.value = true
   try {
-    await checkoutCourseApi({
+    const data = await checkoutCourseApi({
       course_id: course.value.id,
       pay_method: payForm.value.pay_method,
     })
     payDialogVisible.value = false
-    ElMessage.success('支付成功，已开通课程学习权限')
+    if (data.payment_url) {
+      window.open(data.payment_url, '_blank', 'noopener,noreferrer')
+      ElMessage.success('已打开支付宝沙箱收银台，请在新窗口完成支付')
+    } else {
+      ElMessage.success('免费课程已开通')
+    }
     await loadCourse()
   } finally {
     paying.value = false
@@ -270,7 +275,8 @@ async function submitComment() {
       content: commentForm.value.content.trim(),
     })
     commentForm.value = { rating: 5, content: '' }
-    ElMessage.success('评论提交成功，审核通过后展示')
+    ElMessage.success('评论发布成功')
+    await loadComments()
   } finally {
     commentSubmitting.value = false
   }

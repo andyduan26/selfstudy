@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from django.db import models
 from django.db import transaction
+from django.http import HttpResponse
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .alipay import AlipayConfigError, build_page_pay_url, is_configured, verify_notify
 from .models import (
     Chapter,
     Comment,
@@ -263,41 +265,97 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(paid_order).data)
 
         amount = Decimal('0.00') if course.is_free else course.price
-        teacher_amount = (amount * course.teacher_share_rate / Decimal('100')).quantize(Decimal('0.01'))
-        platform_amount = amount - teacher_amount
+        if amount > 0 and pay_method != Order.PayMethod.ALIPAY:
+            return Response({'detail': '支付宝沙箱阶段仅支持支付宝支付'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount > 0 and not is_configured():
+            return Response({'detail': '支付宝沙箱参数未配置，请先在 backend/.env 配置 APP_ID、应用私钥和支付宝公钥'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             order = Order.objects.create(
                 order_no=f'ORDER{timezone.now().strftime("%Y%m%d%H%M%S")}{uuid4().hex[:8].upper()}',
                 user=request.user,
                 course=course,
-                status=Order.Status.PAID,
+                status=Order.Status.PENDING,
                 pay_method=Order.PayMethod.FREE if amount <= 0 else pay_method,
-                trade_no=f'SIM{uuid4().hex[:16].upper()}',
                 amount=amount,
-                teacher_share_amount=teacher_amount,
-                platform_share_amount=platform_amount,
-                paid_at=timezone.now(),
-                remark='前台模拟支付成功',
+                remark='支付宝沙箱待支付' if amount > 0 else '免费课程自动开通',
             )
-            RevenueRecord.objects.create(
-                teacher=course.teacher,
-                course=course,
+            if amount <= 0:
+                self._mark_order_paid(order, trade_no=f'FREE{uuid4().hex[:16].upper()}')
+
+        data = self.get_serializer(order).data
+        if amount > 0:
+            try:
+                data['payment_url'] = build_page_pay_url(order)
+            except AlipayConfigError as exc:
+                order.remark = str(exc)
+                order.save(update_fields=['remark', 'updated_at'])
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path='alipay-notify')
+    def alipay_notify(self, request):
+        data = request.data.dict() if hasattr(request.data, 'dict') else request.data
+        try:
+            is_valid = verify_notify(data)
+        except AlipayConfigError:
+            return HttpResponse('fail')
+        if not is_valid:
+            return HttpResponse('fail')
+
+        trade_status = data.get('trade_status')
+        order_no = data.get('out_trade_no')
+        trade_no = data.get('trade_no', '')
+        if trade_status not in ('TRADE_SUCCESS', 'TRADE_FINISHED') or not order_no:
+            return HttpResponse('success')
+
+        order = Order.objects.select_related('course', 'course__teacher').filter(order_no=order_no).first()
+        if not order:
+            return HttpResponse('fail')
+        self._mark_order_paid(order, trade_no=trade_no)
+        return HttpResponse('success')
+
+    def _mark_order_paid(self, order, trade_no=''):
+        if order.status in (Order.Status.PAID, Order.Status.COMPLETED):
+            return order
+        teacher_amount = (order.amount * order.course.teacher_share_rate / Decimal('100')).quantize(Decimal('0.01'))
+        platform_amount = order.amount - teacher_amount
+        with transaction.atomic():
+            order.status = Order.Status.PAID
+            order.trade_no = trade_no or order.trade_no
+            order.teacher_share_amount = teacher_amount
+            order.platform_share_amount = platform_amount
+            order.paid_at = timezone.now()
+            order.remark = '支付宝沙箱支付成功' if order.amount > 0 else order.remark
+            order.save(update_fields=[
+                'status',
+                'trade_no',
+                'teacher_share_amount',
+                'platform_share_amount',
+                'paid_at',
+                'remark',
+                'updated_at',
+            ])
+            RevenueRecord.objects.get_or_create(
                 order=order,
-                gross_amount=amount,
-                teacher_amount=teacher_amount,
-                platform_amount=platform_amount,
-                teacher_share_rate=course.teacher_share_rate,
-                platform_share_rate=course.platform_share_rate,
-                status=RevenueRecord.Status.WITHDRAWABLE,
-                settled_at=timezone.now(),
+                defaults={
+                    'teacher': order.course.teacher,
+                    'course': order.course,
+                    'gross_amount': order.amount,
+                    'teacher_amount': teacher_amount,
+                    'platform_amount': platform_amount,
+                    'teacher_share_rate': order.course.teacher_share_rate,
+                    'platform_share_rate': order.course.platform_share_rate,
+                    'status': RevenueRecord.Status.WITHDRAWABLE,
+                    'settled_at': timezone.now(),
+                },
             )
-            Course.objects.filter(pk=course.pk).update(sales_count=models.F('sales_count') + 1)
-            TeacherProfile.objects.filter(pk=course.teacher_id).update(
+            Course.objects.filter(pk=order.course_id).update(sales_count=models.F('sales_count') + 1)
+            TeacherProfile.objects.filter(pk=order.course.teacher_id).update(
                 total_students=models.F('total_students') + 1,
                 total_revenue=models.F('total_revenue') + teacher_amount,
             )
-        return Response(self.get_serializer(order).data, status=status.HTTP_201_CREATED)
+        return order
 
 
 class RevenueRecordViewSet(viewsets.ModelViewSet):
@@ -349,7 +407,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         return queryset.filter(status=Comment.Status.VISIBLE)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user, status=Comment.Status.PENDING)
+        serializer.save(user=self.request.user, status=Comment.Status.VISIBLE)
 
 
 class FavoriteViewSet(viewsets.ModelViewSet):

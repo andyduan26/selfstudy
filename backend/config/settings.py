@@ -189,3 +189,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 SIMPLEUI_HOME_INFO = False
 SIMPLEUI_ANALYSIS = False
 SIMPLEUI_LOGO = ''
+
+ALIPAY_ENV = os.getenv('ALIPAY_ENV', 'sandbox')
+ALIPAY_APP_ID = os.getenv('ALIPAY_APP_ID', '')
+ALIPAY_APP_PRIVATE_KEY = os.getenv('ALIPAY_APP_PRIVATE_KEY', '')
+ALIPAY_PUBLIC_KEY = os.getenv('ALIPAY_PUBLIC_KEY', '')
+ALIPAY_NOTIFY_URL = os.getenv('ALIPAY_NOTIFY_URL', 'http://127.0.0.1:8000/api/orders/alipay-notify/')
+ALIPAY_RETURN_URL = os.getenv('ALIPAY_RETURN_URL', 'http://127.0.0.1:5173/user')

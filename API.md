@@ -16,9 +16,9 @@ GET /api/users/me/
 
 当前阶段只完成前端架构，不实现具体业务接口。
 
-## 静态页面说明
+## 前端数据说明
 
-课程、讲师、榜单、试看状态均来自 `src/data/platform.js`，当前不请求后端接口。
+首页课程区、课程列表、课程详情、播放页、个人中心作品和收益均已接入 Django 后端接口。讲师榜单仍保留本地展示数据，后续可继续接后端。
 
 ## 后端 API
 
@@ -61,6 +61,33 @@ PATCH /api/users/me/
 /api/comments/
 /api/favorites/
 ```
+
+课程支付：
+
+```http
+POST /api/orders/checkout/
+POST /api/orders/alipay-notify/
+```
+
+`POST /api/orders/checkout/` 需要登录，参数：
+
+```json
+{
+  "course_id": 1,
+  "pay_method": "alipay"
+}
+```
+
+免费课程会直接开通；付费课程会返回 `payment_url`，前端打开支付宝沙箱收银台。支付宝异步通知 `POST /api/orders/alipay-notify/` 验签成功后，后端更新订单为已支付并生成讲师收益。
+
+课程评论：
+
+```http
+GET /api/comments/?course=1
+POST /api/comments/
+```
+
+评论提交后直接显示，不需要后台审核。
 
 讲师申请与作品上传：
 
