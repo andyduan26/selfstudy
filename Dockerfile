@@ -16,5 +16,6 @@ RUN python -m pip install --upgrade pip \
 COPY backend /app
 
 CMD python manage.py migrate \
+  && python manage.py ensure_superuser \
   && python manage.py collectstatic --noinput \
   && gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000}
