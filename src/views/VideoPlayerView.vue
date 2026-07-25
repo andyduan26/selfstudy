@@ -2,7 +2,7 @@
   <section v-if="course" class="player-page">
     <div class="player-shell">
       <div class="video-box">
-        <video v-if="currentVideoUrl" class="course-video" :src="currentVideoUrl" :poster="course.coverUrl" controls preload="metadata" />
+        <video v-if="currentVideoUrl" ref="videoRef" class="course-video" :poster="course.coverUrl" controls preload="metadata" />
         <template v-else>
           <div class="play-symbol">▶</div>
           <h1>{{ course.title }}</h1>
@@ -38,7 +38,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getCourseApi } from '@/api/course'
@@ -48,6 +48,8 @@ const route = useRoute()
 const router = useRouter()
 const rawCourse = ref(null)
 const activeLessonId = ref(null)
+const videoRef = ref(null)
+const hlsPlayer = ref(null)
 const course = computed(() => rawCourse.value ? {
   id: rawCourse.value.id,
   title: rawCourse.value.title,
@@ -62,7 +64,8 @@ const chapterGroups = computed(() => (rawCourse.value?.chapters || []).map((chap
     index: lessonIndex + 1,
     title: video.title || `第 ${lessonIndex + 1} 节`,
     isFreePreview: video.is_free_preview || chapter.is_free_preview || (chapterIndex === 0 && lessonIndex === 0),
-    videoUrl: video.video_file || video.video_url || '',
+    videoUrl: video.hls_url || video.video_file || video.video_url || '',
+    isHls: Boolean(video.hls_url),
   })),
 })))
 const lessons = computed(() => chapterGroups.value.flatMap((chapter) => chapter.lessons))
@@ -70,11 +73,14 @@ const currentLesson = computed(() => lessons.value.find((lesson) => lesson.id ==
 const currentVideoUrl = computed(() => currentLesson.value?.videoUrl || '')
 
 onMounted(loadCourse)
+onBeforeUnmount(destroyHls)
 
 watch(
   () => route.params.id,
   () => loadCourse(),
 )
+
+watch(currentVideoUrl, () => setupVideoSource())
 
 async function loadCourse() {
   rawCourse.value = null
@@ -82,6 +88,7 @@ async function loadCourse() {
   try {
     rawCourse.value = await getCourseApi(route.params.id)
     activeLessonId.value = lessons.value[0]?.id || null
+    await setupVideoSource()
   } catch {
     rawCourse.value = null
   }
@@ -93,5 +100,38 @@ function handleLesson(lesson) {
     return
   }
   activeLessonId.value = lesson.id
+}
+
+async function setupVideoSource() {
+  await nextTick()
+  destroyHls()
+  const video = videoRef.value
+  const url = currentVideoUrl.value
+  if (!video || !url) return
+
+  if (currentLesson.value?.isHls) {
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url
+      return
+    }
+    const { default: Hls } = await import('hls.js')
+    if (Hls.isSupported()) {
+      hlsPlayer.value = new Hls()
+      hlsPlayer.value.loadSource(url)
+      hlsPlayer.value.attachMedia(video)
+      return
+    }
+    ElMessage.warning('当前浏览器不支持 HLS 播放')
+    return
+  }
+
+  video.src = url
+}
+
+function destroyHls() {
+  if (hlsPlayer.value) {
+    hlsPlayer.value.destroy()
+    hlsPlayer.value = null
+  }
 }
 </script>

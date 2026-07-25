@@ -110,6 +110,18 @@ POST /api/courses/upload-work/
 
 辅助字段包含 `poster` 视频封面、`duration_seconds` 时长、`file_size` 文件大小、`transcode_status` 转码状态、`view_count` 点播量、`is_free_preview` 试看标记和 `sort_weight` 排序权重。
 
+HLS 播放字段：
+
+- `hls_url`：HLS 播放地址，前端播放页优先使用。
+- `hls_path`：本地 HLS 切片目录。
+- `source_type=hls`：表示该视频已完成 HLS 转码。
+
+手动转码接口使用 Django 管理命令：
+
+```bash
+python manage.py transcode_hls --pending
+```
+
 大文件上传配置：
 
 ```text

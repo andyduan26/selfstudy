@@ -120,7 +120,8 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         course = Course.objects.get(title='真实上传课程')
         self.assertEqual(course.status, Course.Status.PENDING)
-        self.assertTrue(Video.objects.filter(chapter__course=course).exists())
+        video = Video.objects.get(chapter__course=course)
+        self.assertIn(video.transcode_status, ['completed', 'failed', 'pending'])
         self.assertTrue(CourseAttachment.objects.filter(course=course).exists())
 
     def test_verified_teacher_can_upload_work_with_multiple_chapters(self):

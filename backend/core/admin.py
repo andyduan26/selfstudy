@@ -260,7 +260,7 @@ class CourseAttachmentAdmin(admin.ModelAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'chapter', 'source_type', 'video_file', 'video_url', 'vod_file_id', 'transcode_status', 'duration_seconds', 'view_count', 'is_free_preview')
+    list_display = ('id', 'title', 'chapter', 'source_type', 'video_file', 'hls_url', 'video_url', 'vod_file_id', 'transcode_status', 'duration_seconds', 'view_count', 'is_free_preview')
     list_filter = ('source_type', 'transcode_status', 'is_free_preview')
     search_fields = ('title', 'chapter__title')
 

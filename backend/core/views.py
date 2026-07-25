@@ -46,6 +46,7 @@ from .serializers import (
     VideoSerializer,
     WithdrawalSerializer,
 )
+from .video_processing import transcode_video_to_hls
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -217,6 +218,8 @@ class CourseViewSet(viewsets.ModelViewSet):
                 file=attachment_file,
                 file_size=attachment_file.size,
             )
+        for video in Video.objects.filter(chapter__course=course, video_file__gt=''):
+            transcode_video_to_hls(video)
         return Response(CourseSerializer(course, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 

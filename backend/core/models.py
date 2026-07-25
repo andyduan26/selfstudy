@@ -173,6 +173,7 @@ class Chapter(TimeStampedModel):
 class Video(TimeStampedModel):
     class SourceType(models.TextChoices):
         UPLOAD = 'upload', '本地上传'
+        HLS = 'hls', 'HLS切片'
         EXTERNAL = 'external', '外部地址'
         VOD = 'vod', '云点播'
 
@@ -181,6 +182,8 @@ class Video(TimeStampedModel):
     source_type = models.CharField('视频来源', max_length=20, choices=SourceType.choices, default=SourceType.UPLOAD)
     video_file = models.FileField('视频文件上传', upload_to='courses/videos/%Y/%m/', blank=True)
     video_url = models.URLField('外部视频地址', blank=True)
+    hls_url = models.URLField('HLS播放地址', blank=True)
+    hls_path = models.CharField('本地HLS目录', max_length=255, blank=True)
     vod_file_id = models.CharField('云点播文件ID', max_length=120, blank=True)
     transcode_status = models.CharField('转码状态', max_length=30, default='pending')
     file_size = models.PositiveBigIntegerField('文件大小字节', default=0)
