@@ -64,7 +64,7 @@ const chapterGroups = computed(() => (rawCourse.value?.chapters || []).map((chap
     index: lessonIndex + 1,
     title: video.title || `第 ${lessonIndex + 1} 节`,
     isFreePreview: video.is_free_preview || chapter.is_free_preview || (chapterIndex === 0 && lessonIndex === 0),
-    videoUrl: video.hls_url || video.video_file || video.video_url || '',
+    videoUrl: resolveMediaUrl(video.hls_url || video.video_file || video.video_url || ''),
     isHls: Boolean(video.hls_url),
   })),
 })))
@@ -133,5 +133,11 @@ function destroyHls() {
     hlsPlayer.value.destroy()
     hlsPlayer.value = null
   }
+}
+
+function resolveMediaUrl(url) {
+  if (!url || /^https?:\/\//.test(url)) return url
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`
 }
 </script>
