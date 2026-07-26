@@ -223,6 +223,10 @@ R2_PUBLIC_BASE_URL=https://pub-xxxx.r2.dev
 R2_HLS_PREFIX=courses/hls
 ```
 
+线上部署时，支付宝变量必须填在 Railway 后端服务 `selfstudy` 的 Variables 里，保存后点击 `Deploy`。
+不要填到 Vercel 前端项目里，也不要只改本地 `backend/.env`。
+`APP_ID`、`APPID`、`APP_PRIVATE_KEY`、`APPLICATION_PRIVATE_KEY` 这些常见写法会被兼容读取，但推荐统一使用 `ALIPAY_` 开头的变量名。
+
 生产环境配置完整 R2 后，课程封面、课程视频、讲师申请材料等上传文件会直接保存到 R2。
 不要依赖 Railway 容器本地 `/media/` 目录保存上传文件，容器重新部署后本地媒体文件可能丢失。
 

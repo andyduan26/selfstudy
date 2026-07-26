@@ -62,7 +62,14 @@ def verify_notify(data):
 
 def _require_config():
     if not is_configured():
-        raise AlipayConfigError('支付宝沙箱参数未配置，请先在 backend/.env 配置 APP_ID、应用私钥和支付宝公钥')
+        missing = []
+        if not settings.ALIPAY_APP_ID:
+            missing.append('ALIPAY_APP_ID')
+        if not settings.ALIPAY_APP_PRIVATE_KEY:
+            missing.append('ALIPAY_APP_PRIVATE_KEY')
+        if not settings.ALIPAY_PUBLIC_KEY:
+            missing.append('ALIPAY_PUBLIC_KEY')
+        raise AlipayConfigError(f'支付宝沙箱参数未配置，缺少：{", ".join(missing)}。请在 Railway 后端 Variables 中配置并点击 Deploy。')
     if settings.ALIPAY_ENV not in GATEWAYS:
         raise AlipayConfigError('ALIPAY_ENV 只能填写 sandbox 或 production')
 
