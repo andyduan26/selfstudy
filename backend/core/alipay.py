@@ -1,5 +1,7 @@
 import base64
 import json
+import urllib.parse
+import urllib.request
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -43,6 +45,36 @@ def build_page_pay_url(order):
     }
     params['sign'] = _sign(params)
     return f'{GATEWAYS[settings.ALIPAY_ENV]}?{urlencode(params)}'
+
+
+def build_qrcode_pay(order):
+    _require_config()
+    params = {
+        'app_id': settings.ALIPAY_APP_ID,
+        'method': 'alipay.trade.precreate',
+        'format': 'JSON',
+        'charset': 'utf-8',
+        'sign_type': 'RSA2',
+        'timestamp': order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'version': '1.0',
+        'notify_url': settings.ALIPAY_NOTIFY_URL,
+        'biz_content': json.dumps({
+            'out_trade_no': order.order_no,
+            'total_amount': str(order.amount),
+            'subject': order.course.title[:128],
+        }, ensure_ascii=False, separators=(',', ':')),
+    }
+    params['sign'] = _sign(params)
+    request_data = urllib.parse.urlencode(params).encode('utf-8')
+    request = urllib.request.Request(GATEWAYS[settings.ALIPAY_ENV], data=request_data)
+    with urllib.request.urlopen(request, timeout=15) as response:
+        payload = json.loads(response.read().decode('utf-8'))
+
+    result = payload.get('alipay_trade_precreate_response') or {}
+    if result.get('code') != '10000' or not result.get('qr_code'):
+        message = result.get('sub_msg') or result.get('msg') or '支付宝二维码创建失败'
+        raise AlipayConfigError(message)
+    return result['qr_code']
 
 
 def verify_notify(data):

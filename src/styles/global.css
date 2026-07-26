@@ -667,6 +667,22 @@ h3 {
   width: 100%;
 }
 
+.qrcode-pay {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.qrcode-pay img {
+  width: 220px;
+  height: 220px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
 .lesson-row {
   display: grid;
   grid-template-columns: 80px minmax(0, 1fr) auto auto;

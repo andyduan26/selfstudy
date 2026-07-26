@@ -125,24 +125,30 @@
       </div>
       <el-radio-group v-model="payForm.pay_method" class="pay-methods">
         <el-radio-button label="alipay">支付宝</el-radio-button>
-        <el-radio-button label="wechat">微信</el-radio-button>
+        <el-radio-button label="wechat" disabled>微信</el-radio-button>
       </el-radio-group>
-      <p>当前接入支付宝沙箱。确认后会打开支付宝沙箱收银台，支付成功后由支付宝异步通知后端完成订单和收益结算。</p>
+      <div v-if="qrcodeDataUrl" class="qrcode-pay">
+        <img :src="qrcodeDataUrl" alt="支付宝扫码支付二维码" />
+        <p>请使用支付宝沙箱 App 扫码支付，支付成功后页面会自动进入学习。</p>
+      </div>
+      <p v-else>当前接入支付宝当面付沙箱。点击后生成扫码支付二维码，支付成功后由支付宝异步通知后端完成订单和收益结算。</p>
     </div>
     <template #footer>
-      <el-button @click="payDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="paying" @click="submitPayment">确认支付</el-button>
+      <el-button @click="closePayDialog">取消</el-button>
+      <el-button v-if="qrcodeDataUrl" :loading="pollingPayment" @click="checkPaymentStatus">我已支付</el-button>
+      <el-button type="primary" :loading="paying" @click="submitPayment">{{ qrcodeDataUrl ? '重新生成' : '生成支付二维码' }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import QRCode from 'qrcode'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createCourseCommentApi, getCourseCommentsApi } from '@/api/comment'
 import { getCourseApi } from '@/api/course'
-import { checkoutCourseApi } from '@/api/order'
+import { createAlipayQrcodeApi, getOrderStatusApi } from '@/api/order'
 import { useAuthStore } from '@/stores/auth'
 import { categories } from '@/data/platform'
 import NotFoundView from './NotFoundView.vue'
@@ -154,10 +160,14 @@ const dialogVisible = ref(false)
 const payDialogVisible = ref(false)
 const loading = ref(false)
 const paying = ref(false)
+const pollingPayment = ref(false)
 const commentSubmitting = ref(false)
 const rawCourse = ref(null)
 const comments = ref([])
 const payForm = ref({ pay_method: 'alipay' })
+const currentOrder = ref(null)
+const qrcodeDataUrl = ref('')
+const paymentTimer = ref(null)
 const commentForm = ref({ rating: 5, content: '' })
 const course = computed(() => (rawCourse.value ? mapCourse(rawCourse.value) : null))
 const teacher = computed(() => rawCourse.value?.teacher_detail || null)
@@ -180,6 +190,7 @@ const chapterGroups = computed(() => {
 })
 
 onMounted(loadCourse)
+onBeforeUnmount(stopPaymentPolling)
 
 watch(
   () => route.params.id,
@@ -235,26 +246,63 @@ function openPayDialog() {
     router.push(`/login?redirect=/courses/${course.value.id}`)
     return
   }
+  qrcodeDataUrl.value = ''
+  currentOrder.value = null
   payDialogVisible.value = true
 }
 
 async function submitPayment() {
   paying.value = true
   try {
-    const data = await checkoutCourseApi({
+    const data = await createAlipayQrcodeApi({
       course_id: course.value.id,
-      pay_method: payForm.value.pay_method,
     })
-    payDialogVisible.value = false
-    if (data.payment_url) {
-      window.open(data.payment_url, '_blank', 'noopener,noreferrer')
-      ElMessage.success('已打开支付宝沙箱收银台，请在新窗口完成支付')
-    } else {
+    currentOrder.value = data
+    if (data.paid) {
       ElMessage.success('免费课程已开通')
+      payDialogVisible.value = false
+      router.push(`/courses/${course.value.id}/play`)
+      return
     }
-    await loadCourse()
+    qrcodeDataUrl.value = await QRCode.toDataURL(data.qr_code, { width: 220, margin: 1 })
+    startPaymentPolling()
   } finally {
     paying.value = false
+  }
+}
+
+function closePayDialog() {
+  payDialogVisible.value = false
+  qrcodeDataUrl.value = ''
+  currentOrder.value = null
+  stopPaymentPolling()
+}
+
+function startPaymentPolling() {
+  stopPaymentPolling()
+  paymentTimer.value = window.setInterval(checkPaymentStatus, 3000)
+}
+
+function stopPaymentPolling() {
+  if (paymentTimer.value) {
+    window.clearInterval(paymentTimer.value)
+    paymentTimer.value = null
+  }
+}
+
+async function checkPaymentStatus() {
+  if (!currentOrder.value?.id || pollingPayment.value) return
+  pollingPayment.value = true
+  try {
+    const data = await getOrderStatusApi(currentOrder.value.id)
+    if (data.paid) {
+      stopPaymentPolling()
+      payDialogVisible.value = false
+      ElMessage.success('支付成功，正在进入课程')
+      router.push(`/courses/${course.value.id}/play`)
+    }
+  } finally {
+    pollingPayment.value = false
   }
 }
 

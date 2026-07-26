@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .alipay import AlipayConfigError, build_page_pay_url, is_configured, verify_notify
+from .alipay import AlipayConfigError, build_page_pay_url, build_qrcode_pay, is_configured, verify_notify
 from .models import (
     Chapter,
     Comment,
@@ -245,43 +245,10 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='checkout')
     def checkout(self, request):
-        course_id = request.data.get('course_id')
-        pay_method = request.data.get('pay_method') or Order.PayMethod.ALIPAY
-        course = Course.objects.select_related('teacher').filter(
-            pk=course_id,
-            status__in=[Course.Status.APPROVED, Course.Status.PUBLISHED],
-        ).first()
-        if not course:
-            return Response({'detail': '课程不存在或暂未上架'}, status=status.HTTP_404_NOT_FOUND)
-        if pay_method not in Order.PayMethod.values:
-            return Response({'detail': '支付方式不正确'}, status=status.HTTP_400_BAD_REQUEST)
-
-        paid_order = Order.objects.filter(
-            user=request.user,
-            course=course,
-            status__in=[Order.Status.PAID, Order.Status.COMPLETED],
-        ).first()
-        if paid_order:
-            return Response(self.get_serializer(paid_order).data)
-
-        amount = Decimal('0.00') if course.is_free else course.price
-        if amount > 0 and pay_method != Order.PayMethod.ALIPAY:
-            return Response({'detail': '支付宝沙箱阶段仅支持支付宝支付'}, status=status.HTTP_400_BAD_REQUEST)
-        if amount > 0 and not is_configured():
-            return Response({'detail': '支付宝沙箱参数未配置，请先在 backend/.env 配置 APP_ID、应用私钥和支付宝公钥'}, status=status.HTTP_400_BAD_REQUEST)
-
-        with transaction.atomic():
-            order = Order.objects.create(
-                order_no=f'ORDER{timezone.now().strftime("%Y%m%d%H%M%S")}{uuid4().hex[:8].upper()}',
-                user=request.user,
-                course=course,
-                status=Order.Status.PENDING,
-                pay_method=Order.PayMethod.FREE if amount <= 0 else pay_method,
-                amount=amount,
-                remark='支付宝沙箱待支付' if amount > 0 else '免费课程自动开通',
-            )
-            if amount <= 0:
-                self._mark_order_paid(order, trade_no=f'FREE{uuid4().hex[:16].upper()}')
+        order_response = self._create_checkout_order(request)
+        if isinstance(order_response, Response):
+            return order_response
+        order, amount = order_response
 
         data = self.get_serializer(order).data
         if amount > 0:
@@ -292,6 +259,37 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.save(update_fields=['remark', 'updated_at'])
                 return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], url_path='alipay-qrcode')
+    def alipay_qrcode(self, request):
+        order_response = self._create_checkout_order(request, pay_method=Order.PayMethod.ALIPAY)
+        if isinstance(order_response, Response):
+            return order_response
+        order, amount = order_response
+        data = self.get_serializer(order).data
+        if amount <= 0:
+            data['paid'] = True
+            return Response(data, status=status.HTTP_201_CREATED)
+        try:
+            data['qr_code'] = build_qrcode_pay(order)
+        except AlipayConfigError as exc:
+            order.remark = str(exc)
+            order.save(update_fields=['remark', 'updated_at'])
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        data['paid'] = order.status in (Order.Status.PAID, Order.Status.COMPLETED)
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], url_path='status')
+    def status(self, request, pk=None):
+        order = self.get_object()
+        return Response({
+            'id': order.id,
+            'order_no': order.order_no,
+            'status': order.status,
+            'paid': order.status in (Order.Status.PAID, Order.Status.COMPLETED),
+            'course': order.course_id,
+            'paid_at': order.paid_at,
+        })
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny], authentication_classes=[], url_path='alipay-notify')
     def alipay_notify(self, request):
@@ -356,6 +354,53 @@ class OrderViewSet(viewsets.ModelViewSet):
                 total_revenue=models.F('total_revenue') + teacher_amount,
             )
         return order
+
+    def _create_checkout_order(self, request, pay_method=None):
+        course_id = request.data.get('course_id')
+        pay_method = pay_method or request.data.get('pay_method') or Order.PayMethod.ALIPAY
+        course = Course.objects.select_related('teacher').filter(
+            pk=course_id,
+            status__in=[Course.Status.APPROVED, Course.Status.PUBLISHED],
+        ).first()
+        if not course:
+            return Response({'detail': '课程不存在或暂未上架'}, status=status.HTTP_404_NOT_FOUND)
+        if pay_method not in Order.PayMethod.values:
+            return Response({'detail': '支付方式不正确'}, status=status.HTTP_400_BAD_REQUEST)
+
+        paid_order = Order.objects.filter(
+            user=request.user,
+            course=course,
+            status__in=[Order.Status.PAID, Order.Status.COMPLETED],
+        ).first()
+        if paid_order:
+            return paid_order, Decimal('0.00')
+
+        amount = Decimal('0.00') if course.is_free else course.price
+        if amount > 0 and pay_method != Order.PayMethod.ALIPAY:
+            return Response({'detail': '支付宝沙箱阶段仅支持支付宝支付'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount > 0 and not is_configured():
+            return Response({'detail': '支付宝沙箱参数未配置，请确认 Railway 后端 Variables 已配置 ALIPAY_APP_ID、ALIPAY_APP_PRIVATE_KEY、ALIPAY_PUBLIC_KEY 并点击 Deploy'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            order = Order.objects.filter(
+                user=request.user,
+                course=course,
+                status=Order.Status.PENDING,
+                pay_method=pay_method,
+            ).order_by('-created_at').first()
+            if not order:
+                order = Order.objects.create(
+                    order_no=f'ORDER{timezone.now().strftime("%Y%m%d%H%M%S")}{uuid4().hex[:8].upper()}',
+                    user=request.user,
+                    course=course,
+                    status=Order.Status.PENDING,
+                    pay_method=Order.PayMethod.FREE if amount <= 0 else pay_method,
+                    amount=amount,
+                    remark='支付宝沙箱待支付' if amount > 0 else '免费课程自动开通',
+                )
+            if amount <= 0:
+                self._mark_order_paid(order, trade_no=f'FREE{uuid4().hex[:16].upper()}')
+        return order, amount
 
 
 class RevenueRecordViewSet(viewsets.ModelViewSet):

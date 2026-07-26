@@ -392,6 +392,48 @@ class TeacherWorkflowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(Order.objects.filter(user=buyer, course=course).exists())
 
+    @patch('core.views.is_configured', return_value=True)
+    @patch('core.views.build_qrcode_pay', return_value='https://qr.alipay.com/sandbox-demo')
+    def test_paid_course_can_create_alipay_qrcode(self, mock_qrcode, mock_configured):
+        buyer = User.objects.create_user(username='qrcode-buyer@example.com', email='qrcode-buyer@example.com', password='StrongPass12345')
+        teacher_user = User.objects.create_user(username='qrcode-teacher@example.com', email='qrcode-teacher@example.com', password='StrongPass12345')
+        teacher = TeacherProfile.objects.create(user=teacher_user, real_name='扫码老师', direction='支付')
+        category = CourseCategory.objects.create(name='扫码分类', slug='qrcode-course')
+        course = Course.objects.create(
+            teacher=teacher,
+            category=category,
+            title='扫码付费课程',
+            status=Course.Status.PUBLISHED,
+            price='88.00',
+        )
+        self.client.force_authenticate(user=buyer)
+
+        response = self.client.post('/api/orders/alipay-qrcode/', {
+            'course_id': course.id,
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['qr_code'], 'https://qr.alipay.com/sandbox-demo')
+        self.assertFalse(response.data['paid'])
+        order = Order.objects.get(user=buyer, course=course)
+        self.assertEqual(order.status, Order.Status.PENDING)
+        mock_qrcode.assert_called_once_with(order)
+
+    def test_user_can_check_order_status(self):
+        buyer = User.objects.create_user(username='status-buyer@example.com', email='status-buyer@example.com', password='StrongPass12345')
+        teacher_user = User.objects.create_user(username='status-teacher@example.com', email='status-teacher@example.com', password='StrongPass12345')
+        teacher = TeacherProfile.objects.create(user=teacher_user, real_name='状态老师', direction='支付')
+        category = CourseCategory.objects.create(name='状态分类', slug='status-course')
+        course = Course.objects.create(teacher=teacher, category=category, title='状态课程', status=Course.Status.PUBLISHED, price='0.00', is_free=True)
+        order = Order.objects.create(order_no='ORDERSTATUS001', user=buyer, course=course, status=Order.Status.PAID, pay_method=Order.PayMethod.FREE, amount='0.00')
+        self.client.force_authenticate(user=buyer)
+
+        response = self.client.get(f'/api/orders/{order.id}/status/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['paid'])
+        self.assertEqual(response.data['course'], course.id)
+
     def test_r2_upload_updates_hls_url_when_configured(self):
         teacher_user = User.objects.create_user(username='r2-teacher@example.com', email='r2-teacher@example.com', password='StrongPass12345')
         teacher = TeacherProfile.objects.create(user=teacher_user, real_name='R2老师', direction='视频')
